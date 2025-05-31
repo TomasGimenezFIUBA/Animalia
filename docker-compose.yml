@@ -1,0 +1,14 @@
+services:
+  citizen-command-service-db:
+      image: postgres:16
+      ports:
+        - "5432:5432"
+      environment:
+        POSTGRES_DB: animalia
+        POSTGRES_USER: admin
+        POSTGRES_PASSWORD: admin
+      networks:
+        - animalia-net
+networks:
+  animalia-net:
+    driver: bridge
