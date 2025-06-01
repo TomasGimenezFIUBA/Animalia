@@ -1,15 +1,18 @@
 package com.tomasgimenez.citizen_command_service.service;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.tomasgimenez.citizen_command_service.model.dto.CitizenDTO;
+import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
@@ -17,6 +20,7 @@ import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -25,11 +29,14 @@ import lombok.extern.slf4j.Slf4j;
 public class CitizenServiceImpl implements CitizenService {
   private final CitizenRepository citizenRepository;
   private final SpeciesService speciesService;
-  private final RolePolicyValidator rolePolicyValidator;
   private final RoleService roleService;
+  private final CitizenEventMapper citizenEventMapper;
+  private final CitizenEventProducerService citizenEventProducerService;
+  @Autowired @Setter
+  private RolePolicyValidator rolePolicyValidator;
 
   @Override
-  public CitizenDTO createCitizen(CreateCitizenRequest request) {
+  public CitizenEntity createCitizen(CreateCitizenRequest request) {
     log.info("Creating citizen with name: {}", request.name());
 
     var speciesEntity = speciesService.getById(request.speciesId());
@@ -44,9 +51,12 @@ public class CitizenServiceImpl implements CitizenService {
         .build();
 
     var saved = citizenRepository.save(entity);
+    citizenEventProducerService.sendCitizenCreatedEvent(
+        citizenEventMapper.toCreatedEvent(saved)
+    );
     log.info("Citizen created with ID: {}", saved.getId());
 
-    return CitizenDTO.fromEntity(saved);
+    return saved;
   }
 
   @Override
@@ -76,6 +86,9 @@ public class CitizenServiceImpl implements CitizenService {
     }
 
     citizenRepository.save(citizenEntity);
+    citizenEventProducerService.sendCitizenUpdatedEvent(
+        citizenEventMapper.toUpdatedEvent(citizenEntity)
+    );
     log.info("Citizen with ID {} updated successfully", request.id());
   }
 
@@ -83,11 +96,14 @@ public class CitizenServiceImpl implements CitizenService {
   public void deleteCitizen(UUID id) {
     log.info("Deleting citizen with ID: {}", id);
     citizenRepository.deleteById(id);
+    citizenEventProducerService.sendCitizenDeletedEvent(
+        citizenEventMapper.toDeletedEvent(id)
+    );
     log.info("Citizen with ID {} deleted", id);
   }
 
   @Override
-  public Set<CitizenDTO> createCitizens(List<CreateCitizenRequest> requests) {
+  public Set<CitizenEntity> createCitizens(List<CreateCitizenRequest> requests) {
     log.info("Creating bulk citizens: total {}", requests.size());
 
     var speciesIds = requests.stream()
@@ -105,6 +121,7 @@ public class CitizenServiceImpl implements CitizenService {
 
     var entities = requests.stream()
         .map(request -> CitizenEntity.builder()
+            .id(UUID.randomUUID()) // -> necessary for bulk creation
             .name(request.name())
             .hasHumanPet(request.hasHumanPet())
             .species(speciesEntities.stream()
@@ -123,9 +140,25 @@ public class CitizenServiceImpl implements CitizenService {
     var saved = citizenRepository.saveAll(entities);
     log.info("Bulk creation completed. Total created: {}", saved.size());
 
-    return saved.stream()
-        .map(CitizenDTO::fromEntity)
-        .collect(Collectors.toSet());
+    return new HashSet<>(saved);
+  }
+
+  @Override
+  public Set<CitizenEntity> getCitizensByRoleName(RoleName roleName) {
+    log.info("Retrieving citizens by role names: {}", roleName);
+
+    var citizens = citizenRepository.findByRoleName(roleName);
+    return new HashSet<>(citizens);
+  }
+
+  public CitizenEntity getById(UUID id) {
+    log.info("Retrieving citizen by ID: {}", id);
+
+    return citizenRepository.findById(id)
+        .orElseThrow(() -> {
+          log.warn("Citizen not found with ID: {}", id);
+          return new EntityNotFoundException("Citizen not found with id: " + id);
+        });
   }
 }
 

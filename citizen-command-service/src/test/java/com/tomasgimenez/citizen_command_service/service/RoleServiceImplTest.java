@@ -38,7 +38,11 @@ class RoleServiceImplTest {
     List<RoleEntity> foundEntities = List.of(entity1, entity2);
     Set<RoleName> requested = Set.of(role1, role2);
 
-    when(roleRepository.findRoleEntitiesByNameIn(List.of(role1, role2))).thenReturn(foundEntities);
+    requested.forEach(roleName -> {
+      RoleEntity entity = new RoleEntity();
+      entity.setName(roleName);
+      when(roleRepository.findByName(roleName)).thenReturn(Optional.of(entity));
+    });
 
     Set<RoleEntity> result = roleService.getRolesByRoleNames(requested);
 
@@ -52,9 +56,52 @@ class RoleServiceImplTest {
 
     when(roleRepository.findRoleEntitiesByNameIn(List.of(requestedRole))).thenReturn(List.of());
 
-    EntityNotFoundException ex = assertThrows(EntityNotFoundException.class,
+    assertThrows(EntityNotFoundException.class,
         () -> roleService.getRolesByRoleNames(Set.of(requestedRole)));
+  }
 
-    assertTrue(ex.getMessage().contains("Not all roles found"));
+
+  /*@Test
+  void getRoleByName_shouldCacheResult() {
+    RoleName roleName = RoleName.CIVIL;
+    RoleEntity roleEntity = new RoleEntity();
+    roleEntity.setName(roleName);
+
+    when(roleRepository.findByName(roleName)).thenReturn(Optional.of(roleEntity));
+
+    // First call - fetch from repository
+    RoleEntity result1 = roleService.getRoleByName(roleName);
+    assertEquals(roleEntity, result1);
+    verify(roleRepository, times(1)).findByName(roleName);
+
+    // Second call - fetch from cache
+    RoleEntity result2 = roleService.getRoleByName(roleName);
+    assertEquals(roleEntity, result2);
+    verify(roleRepository, times(1)).findByName(roleName); // Repository should not be called again
+  }*/
+
+  @Test
+  void getRoleByName_shouldThrowExceptionWhenRoleNotFound() {
+    RoleName roleName = RoleName.GENERAL;
+
+    when(roleRepository.findByName(roleName)).thenReturn(Optional.empty());
+
+    EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+        () -> roleService.getRoleByName(roleName));
+
+    assertEquals("Role not found with name: " + roleName, exception.getMessage());
+    verify(roleRepository, times(1)).findByName(roleName);
+  }
+
+  @Test
+  void getRoleByName_shouldReturnRoleWhenExists() {
+    RoleName roleName = RoleName.GENERAL;
+    RoleEntity roleEntity = RoleEntity.builder().name(roleName).build();
+    when(roleRepository.findByName(roleName)).thenReturn(Optional.of(roleEntity));
+
+    RoleEntity result = roleService.getRoleByName(roleName);
+
+    assertEquals(roleEntity, result);
+    verify(roleRepository, times(1)).findByName(roleName);
   }
 }

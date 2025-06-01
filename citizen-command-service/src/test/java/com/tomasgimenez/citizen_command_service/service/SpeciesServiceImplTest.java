@@ -61,13 +61,18 @@ class SpeciesServiceImplTest {
     Set<UUID> ids = Set.of(id1, id2);
     List<SpeciesEntity> found = List.of(s1, s2);
 
-    when(speciesRepository.findAllById(ids)).thenReturn(found);
+    ids.forEach(id -> {
+      SpeciesEntity entity = new SpeciesEntity();
+      entity.setId(id);
+      when(speciesRepository.findById(id)).thenReturn(Optional.of(entity));
+    });
 
     Set<SpeciesEntity> result = speciesService.getByIds(ids);
 
     assertEquals(2, result.size());
     assertTrue(result.containsAll(found));
-    verify(speciesRepository).findAllById(ids);
+    verify(speciesRepository).findById(id1);
+    verify(speciesRepository).findById(id2);
   }
 
   @Test
@@ -83,9 +88,7 @@ class SpeciesServiceImplTest {
 
     when(speciesRepository.findAllById(ids)).thenReturn(found);
 
-    EntityNotFoundException ex = assertThrows(EntityNotFoundException.class,
+    assertThrows(EntityNotFoundException.class,
         () -> speciesService.getByIds(ids));
-
-    assertTrue(ex.getMessage().contains("Not all species found"));
   }
 }

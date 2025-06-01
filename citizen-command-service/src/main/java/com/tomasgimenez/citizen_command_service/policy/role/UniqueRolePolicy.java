@@ -8,23 +8,27 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
-import com.tomasgimenez.citizen_command_service.model.entity.RoleEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
-import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
+import com.tomasgimenez.citizen_command_service.service.CitizenService;
+
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Component
+@NoArgsConstructor
+@Setter
 public class UniqueRolePolicy implements RolePolicy {
 
-  private final CitizenRepository citizenRepository;
+  @Autowired
+  @Lazy
+  private CitizenService citizenService;
 
   private final List<RoleName> uniqueRoles = List.of(RoleName.FIRST_MINISTER, RoleName.TREASURER, RoleName.GENERAL);
-
-  public UniqueRolePolicy(CitizenRepository citizenRepository) {
-    this.citizenRepository = citizenRepository;
-  }
 
   @Override
   public void validate(Set<RoleName> roles, Optional<UUID> excludeId) {
@@ -32,18 +36,16 @@ public class UniqueRolePolicy implements RolePolicy {
       return; // No unique roles to validate
     }
 
-    citizenRepository.findByRoleNamesIn(roles).stream()
-      .filter(citizen -> excludeId.isEmpty() || !citizen.getId().equals(excludeId.get()))
-      .forEach(citizen -> {
-        var conflictingRoles = citizen.getRoles().stream()
-          .map(RoleEntity::getName)
-          .filter(uniqueRoles::contains)
-          .toList();
+    Set<RoleName> rolesToCheck = roles.stream()
+        .filter(uniqueRoles::contains)
+        .collect(Collectors.toSet());
 
-        if (!conflictingRoles.isEmpty()) {
-          throw new RolePolicyException("The following roles are not available: " + conflictingRoles);
-        }
-      });
+    rolesToCheck.forEach(role -> {
+      var roleTaken = citizenService.getCitizensByRoleName(role).stream()
+          .anyMatch(citizen -> excludeId.isEmpty() || !excludeId.get().equals(citizen.getId()));
+      if (roleTaken)
+        throw new RolePolicyException("Role '" + role + "' is already assigned to another citizen.");
+    });
   }
 
   @Override

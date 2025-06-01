@@ -18,5 +18,12 @@ public class EntityExceptionHandler {
     error.put("error", ex.getMessage() != null ? ex.getMessage() : "Entity not found");
     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
   }
+
+  @ExceptionHandler(RolePolicyException.class)
+  public ResponseEntity<Map<String, String>> handleRolePolicyException(RolePolicyException ex) {
+    Map<String, String> error = new HashMap<>();
+    error.put("error", ex.getMessage() != null ? ex.getMessage() : "Role policy violation");
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+  }
 }
 
