@@ -1,7 +1,6 @@
 package com.tomasgimenez.citizen_command_service.repository;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,7 +15,7 @@ public interface CitizenRepository extends JpaRepository<CitizenEntity, UUID> {
   @Query("""
     SELECT c FROM CitizenEntity c
     JOIN c.roles r
-    WHERE r.name IN :roleNames
+    WHERE r.name = :roleName
 """)
-  List<CitizenEntity> findByRoleNamesIn(@Param("roleNames") Set<RoleName> roleNames);
+  List<CitizenEntity> findByRoleName(@Param("roleName") RoleName roleName);
 }

@@ -4,7 +4,8 @@ import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
-import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
+import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
+import com.tomasgimenez.citizen_command_service.service.CitizenService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,13 +17,29 @@ import static org.mockito.Mockito.*;
 
 class UniqueRolePolicyTest {
 
-  private CitizenRepository citizenRepository;
+  private CitizenService citizenService;
   private UniqueRolePolicy uniqueRolePolicy;
 
   @BeforeEach
   void setUp() {
-    citizenRepository = mock(CitizenRepository.class);
-    uniqueRolePolicy = new UniqueRolePolicy(citizenRepository);
+    citizenService = mock(CitizenService.class);
+    uniqueRolePolicy = new UniqueRolePolicy();
+    uniqueRolePolicy.setCitizenService(citizenService);
+  }
+
+  private CitizenEntity createCitizenWithRoles(Set<RoleName> roles) {
+    Set<RoleEntity> roleEntities = new HashSet<>();
+    for (RoleName roleName : roles) {
+      RoleEntity roleEntity = new RoleEntity();
+      roleEntity.setName(roleName);
+      roleEntities.add(roleEntity);
+    }
+
+    return CitizenEntity.builder()
+        .id(UUID.randomUUID())
+        .roles(roleEntities)
+        .species(new SpeciesEntity())
+        .build();
   }
 
   @Test
@@ -31,52 +48,7 @@ class UniqueRolePolicyTest {
 
     uniqueRolePolicy.validate(roles, Optional.empty());
 
-    verifyNoInteractions(citizenRepository);
-  }
-
-  @Test
-  void validate_shouldPassWhenNoConflictFound() {
-    Set<RoleName> roles = Set.of(RoleName.FIRST_MINISTER);
-
-    when(citizenRepository.findByRoleNamesIn(roles)).thenReturn(List.of());
-
-    assertDoesNotThrow(() -> uniqueRolePolicy.validate(roles, Optional.empty()));
-  }
-
-  @Test
-  void validate_shouldThrowWhenConflictFound() {
-    Set<RoleName> roles = Set.of(RoleName.GENERAL);
-
-    RoleEntity roleEntity = new RoleEntity();
-    roleEntity.setName(RoleName.GENERAL);
-
-    CitizenEntity existing = new CitizenEntity();
-    existing.setId(UUID.randomUUID());
-    existing.setRoles(Set.of(roleEntity));
-
-    when(citizenRepository.findByRoleNamesIn(roles)).thenReturn(List.of(existing));
-
-    RolePolicyException ex = assertThrows(RolePolicyException.class,
-        () -> uniqueRolePolicy.validate(roles, Optional.empty()));
-
-    assertTrue(ex.getMessage().contains("GENERAL"));
-  }
-
-  @Test
-  void validate_shouldIgnoreExcludedCitizenId() {
-    UUID myId = UUID.randomUUID();
-    Set<RoleName> roles = Set.of(RoleName.TREASURER);
-
-    RoleEntity roleEntity = new RoleEntity();
-    roleEntity.setName(RoleName.TREASURER);
-
-    CitizenEntity me = new CitizenEntity();
-    me.setId(myId);
-    me.setRoles(Set.of(roleEntity));
-
-    when(citizenRepository.findByRoleNamesIn(roles)).thenReturn(List.of(me));
-
-    assertDoesNotThrow(() -> uniqueRolePolicy.validate(roles, Optional.of(myId)));
+    verifyNoInteractions(citizenService);
   }
 
   @Test
@@ -87,7 +59,7 @@ class UniqueRolePolicyTest {
     );
 
     assertDoesNotThrow(() -> uniqueRolePolicy.validateBulk(bulk));
-    verifyNoInteractions(citizenRepository);
+    verifyNoInteractions(citizenService);
   }
 
   @Test
@@ -104,18 +76,50 @@ class UniqueRolePolicyTest {
   }
 
   @Test
+  void validate_shouldPassWhenNoConflictFound() {
+    Set<RoleName> roles = Set.of(RoleName.FIRST_MINISTER);
+
+    when(citizenService.getCitizensByRoleName(RoleName.FIRST_MINISTER))
+        .thenReturn(Collections.emptySet());
+
+    assertDoesNotThrow(() -> uniqueRolePolicy.validate(roles, Optional.empty()));
+  }
+
+  @Test
+  void validate_shouldThrowWhenConflictFound() {
+    Set<RoleName> roles = Set.of(RoleName.GENERAL);
+    RoleName role = RoleName.GENERAL;
+
+    when(citizenService.getCitizensByRoleName(role))
+        .thenReturn(Set.of(createCitizenWithRoles(Set.of(role))));
+
+    RolePolicyException ex = assertThrows(RolePolicyException.class,
+        () -> uniqueRolePolicy.validate(roles, Optional.empty()));
+
+    assertTrue(ex.getMessage().contains("GENERAL"));
+  }
+
+  @Test
+  void validate_shouldIgnoreExcludedCitizenId() {
+    Set<RoleName> roles = Set.of(RoleName.TREASURER);
+    RoleName role = RoleName.TREASURER;
+    var citizen = createCitizenWithRoles(Set.of(role));
+
+    when(citizenService.getCitizensByRoleName(role))
+        .thenReturn(Set.of(citizen));
+
+    assertDoesNotThrow(() -> uniqueRolePolicy.validate(roles, Optional.of(citizen.getId())));
+  }
+
+  @Test
   void validateBulk_shouldThrowWhenExternalConflictExists() {
-    RoleEntity roleEntity = new RoleEntity();
-    roleEntity.setName(RoleName.FIRST_MINISTER);
+    RoleName conflictRole = RoleName.FIRST_MINISTER;
 
-    CitizenEntity existing = new CitizenEntity();
-    existing.setId(UUID.randomUUID());
-    existing.setRoles(Set.of(roleEntity));
-
-    when(citizenRepository.findByRoleNamesIn(any())).thenReturn(List.of(existing));
+    when(citizenService.getCitizensByRoleName(conflictRole))
+        .thenReturn(Set.of(createCitizenWithRoles(Set.of(conflictRole))));
 
     List<Set<RoleName>> bulk = List.of(
-        Set.of(RoleName.FIRST_MINISTER),
+        Set.of(conflictRole),
         Set.of(RoleName.CIVIL)
     );
 
@@ -127,7 +131,8 @@ class UniqueRolePolicyTest {
 
   @Test
   void validateBulk_shouldPassWhenNoConflicts() {
-    when(citizenRepository.findByRoleNamesIn(any())).thenReturn(List.of());
+    when(citizenService.getCitizensByRoleName(any()))
+        .thenReturn(Set.of());
 
     List<Set<RoleName>> bulk = List.of(
         Set.of(RoleName.FIRST_MINISTER),

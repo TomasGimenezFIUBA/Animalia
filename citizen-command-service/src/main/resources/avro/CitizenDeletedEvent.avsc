@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "CitizenDeletedEvent",
+  "namespace": "com.tomasgimenez.animalia.avro",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "timestamp", "type": "string" },
+    { "name": "source", "type": "string" },
+    { "name": "id", "type": "string" }
+  ]
+}

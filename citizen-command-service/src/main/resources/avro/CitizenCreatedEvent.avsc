@@ -1,0 +1,36 @@
+{
+  "type": "record",
+  "name": "CitizenCreatedEvent",
+  "namespace": "com.tomasgimenez.animalia.avro",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "timestamp", "type": "string" },
+    { "name": "source", "type": "string" },
+
+    { "name": "id", "type": "string" },
+    { "name": "name", "type": "string" },
+    { "name": "hasHumanPet", "type": "boolean" },
+
+    {
+      "name": "species",
+      "type": {
+        "type": "record",
+        "name": "Species",
+        "fields": [
+          { "name": "id", "type": "string" },
+          { "name": "name", "type": "string" },
+          { "name": "weight", "type": "double" },
+          { "name": "height", "type": "double" }
+        ]
+      }
+    },
+
+    {
+      "name": "roleNames",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    }
+  ]
+}

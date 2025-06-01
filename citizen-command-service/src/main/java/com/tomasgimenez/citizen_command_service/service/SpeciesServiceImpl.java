@@ -2,9 +2,12 @@ package com.tomasgimenez.citizen_command_service.service;
 
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import com.tomasgimenez.citizen_command_service.config.CacheConfig;
 import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
 import com.tomasgimenez.citizen_command_service.repository.SpeciesRepository;
 
@@ -19,6 +22,7 @@ public class SpeciesServiceImpl implements SpeciesService {
 
   private final SpeciesRepository speciesRepository;
 
+  @Cacheable(value = CacheConfig.SPECIES_CACHE, key = "#id")
   @Override
   public SpeciesEntity getById(UUID id) {
     return speciesRepository.findById(id).orElseThrow(() -> {
@@ -29,12 +33,15 @@ public class SpeciesServiceImpl implements SpeciesService {
 
   @Override
   public Set<SpeciesEntity> getByIds(Set<UUID> ids) {
-    var result = speciesRepository.findAllById(ids);
-    if (result.size() != ids.size()) {
-      log.warn("Not all species found. Requested IDs: {}, Found count: {}", ids, result.size());
+    Set<SpeciesEntity> speciesSet = ids.stream()
+        .map(this::getById) // could be optimized but this is clear and use cache
+        .collect(Collectors.toSet());
+
+    if (speciesSet.size() != ids.size()) {
+      log.warn("Not all species found. Requested IDs: {}, Found count: {}", ids, speciesSet.size());
       throw new EntityNotFoundException("Not all species found for IDs: " + ids);
     }
 
-    return Set.copyOf(result);
+    return speciesSet;
   }
 }

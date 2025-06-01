@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-public class EntityExceptionHandlerTest {
+class EntityExceptionHandlerTest {
 
   private EntityExceptionHandler handler;
 
@@ -38,5 +38,25 @@ public class EntityExceptionHandlerTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).containsEntry("error", "Entity not found");
+  }
+
+  @Test
+  void handleRolePolicyException_returns403WithMessage() {
+    RolePolicyException ex = new RolePolicyException("Role policy violation for role GENERAL");
+
+    ResponseEntity<Map<String, String>> response = handler.handleRolePolicyException(ex);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).containsEntry("error", "Role policy violation for role GENERAL");
+  }
+
+  @Test
+  void handleRolePolicyException_nullMessage_returnsDefaultMessage() {
+    RolePolicyException ex = new RolePolicyException(null);
+
+    ResponseEntity<Map<String, String>> response = handler.handleRolePolicyException(ex);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).containsEntry("error", "Role policy violation");
   }
 }

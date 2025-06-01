@@ -1,6 +1,7 @@
 package com.tomasgimenez.citizen_command_service.controller;
 
 import com.tomasgimenez.citizen_command_service.model.dto.CitizenDTO;
+import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.service.CitizenService;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @Validated
@@ -40,8 +42,8 @@ public class CitizenController {
   public ResponseEntity<CitizenDTO> createCitizen(
       @Valid @RequestBody
       CreateCitizenRequest request) {
-    CitizenDTO citizen = citizenService.createCitizen(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(citizen);
+    CitizenEntity citizen = citizenService.createCitizen(request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(CitizenDTO.fromEntity(citizen));
   }
 
   @Operation(summary = "Update an existing citizen")
@@ -77,8 +79,11 @@ public class CitizenController {
   public ResponseEntity<Set<CitizenDTO>> createCitizens(
       @Valid @RequestBody
       List<CreateCitizenRequest> requests) {
-    Set<CitizenDTO> citizens = citizenService.createCitizens(requests);
-    return ResponseEntity.status(HttpStatus.CREATED).body(citizens);
+    Set<CitizenEntity> citizens = citizenService.createCitizens(requests);
+    Set<CitizenDTO> citizenDTOs = citizens.stream()
+        .map(CitizenDTO::fromEntity)
+        .collect(Collectors.toSet());
+    return ResponseEntity.status(HttpStatus.CREATED).body(citizenDTOs);
   }
 }
 
