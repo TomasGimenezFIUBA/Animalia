@@ -1,13 +1,11 @@
 package com.tomasgimenez.citizen_command_service.service;
 
-import org.apache.avro.specific.SpecificRecord;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
-import com.tomasgimenez.animalia.avro.CitizenCreatedEvent;
-import com.tomasgimenez.animalia.avro.CitizenDeletedEvent;
-import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
-import com.tomasgimenez.citizen_command_service.config.KafkaProperties;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,35 +13,24 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-class CitizenEventProducerServiceImpl implements CitizenEventProducerService {
-  private final KafkaTemplate<String, SpecificRecord> kafkaTemplate;
-  private final KafkaProperties kafkaProperties;
+public class CitizenEventProducerServiceImpl implements CitizenEventProducerService {
+  private final KafkaTemplate<String, byte[]> kafkaTemplate;
 
   @Override
-  public void sendCitizenCreatedEvent(CitizenCreatedEvent event) {
-    kafkaTemplate.send(kafkaProperties.getTopic().getCitizenCreated(), event.getId().toString(), event);
-    log.info("CitizenCreatedEvent sent: {}", event);
-  }
-
-  @Override
-  public void sendCitizenUpdatedEvent(CitizenUpdatedEvent event) {
-    kafkaTemplate.send(kafkaProperties.getTopic().getCitizenUpdated(), event.getId().toString(), event)
-            .handle(
-                (result, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to send CitizenUpdatedEvent: {}", ex.getMessage());
-                    } else {
-                        log.info("CitizenUpdatedEvent sent successfully: {}", event);
+  public CompletableFuture<SendResult<String, byte[]>> sendCitizenEvent(String key, byte[] payload, String topic, Consumer<SendResult<String, byte[]>> onSuccess) {
+    var completableFuture =  kafkaTemplate.send(topic, key, payload)
+            .whenComplete((result, exception) -> {
+                if (exception != null) {
+                    log.error("Failed to send CitizenEvent to topic {}: {}", topic, exception.getMessage());
+                } else {
+                    log.info("CitizenEvent sent successfully to topic {}: {}", topic, key);
+                    if (onSuccess != null) {
+                        onSuccess.accept(result);
                     }
-                    return result;
                 }
-            );
-    log.info("CitizenUpdatedEvent sent: {}", event);
-  }
+            });
+    log.info("CitizenEvent sent to topic {}: {}", topic, key);
 
-  @Override
-  public void sendCitizenDeletedEvent(CitizenDeletedEvent event) {
-    kafkaTemplate.send(kafkaProperties.getTopic().getCitizenDeleted(), event.getId().toString(), event);
-    log.info("CitizenDeletedEvent sent: {}", event);
+    return completableFuture;
   }
 }

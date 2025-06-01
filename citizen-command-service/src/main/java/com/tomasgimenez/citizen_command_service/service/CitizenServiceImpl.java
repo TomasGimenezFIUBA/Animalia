@@ -1,5 +1,6 @@
 package com.tomasgimenez.citizen_command_service.service;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -7,16 +8,22 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
+import com.tomasgimenez.citizen_command_service.kafka.AvroSerializer;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.OutboxCitizenEventEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
+import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -31,10 +38,13 @@ public class CitizenServiceImpl implements CitizenService {
   private final SpeciesService speciesService;
   private final RoleService roleService;
   private final CitizenEventMapper citizenEventMapper;
-  private final CitizenEventProducerService citizenEventProducerService;
+  private final OutboxCitizenEventRepository outboxCitizenEventRepository;
+  private final AvroSerializer avroSerializer;
+  private final KafkaTopics kafkaTopics;
   @Autowired @Setter
   private RolePolicyValidator rolePolicyValidator;
 
+  @Transactional
   @Override
   public CitizenEntity createCitizen(CreateCitizenRequest request) {
     log.info("Creating citizen with name: {}", request.name());
@@ -51,14 +61,13 @@ public class CitizenServiceImpl implements CitizenService {
         .build();
 
     var saved = citizenRepository.save(entity);
-    citizenEventProducerService.sendCitizenCreatedEvent(
-        citizenEventMapper.toCreatedEvent(saved)
-    );
-    log.info("Citizen created with ID: {}", saved.getId());
+    createOutboxCitizenEvent(saved.getId(), citizenEventMapper.toCreatedEvent(saved), kafkaTopics.getCitizenCreated());
 
+    log.info("Citizen created with ID: {}", saved.getId());
     return saved;
   }
 
+  @Transactional
   @Override
   public void updateCitizen(UpdateCitizenRequest request) {
     log.info("Updating citizen with ID: {}", request.id());
@@ -85,23 +94,21 @@ public class CitizenServiceImpl implements CitizenService {
       citizenEntity.setRoles(roles);
     }
 
-    citizenRepository.save(citizenEntity);
-    citizenEventProducerService.sendCitizenUpdatedEvent(
-        citizenEventMapper.toUpdatedEvent(citizenEntity)
-    );
+    var saved = citizenRepository.save(citizenEntity);
+    createOutboxCitizenEvent(citizenEntity.getId(), citizenEventMapper.toUpdatedEvent(saved), kafkaTopics.getCitizenUpdated());
     log.info("Citizen with ID {} updated successfully", request.id());
   }
 
+  @Transactional
   @Override
   public void deleteCitizen(UUID id) {
     log.info("Deleting citizen with ID: {}", id);
     citizenRepository.deleteById(id);
-    citizenEventProducerService.sendCitizenDeletedEvent(
-        citizenEventMapper.toDeletedEvent(id)
-    );
+    createOutboxCitizenEvent(id, citizenEventMapper.toDeletedEvent(id), kafkaTopics.getCitizenDeleted());
     log.info("Citizen with ID {} deleted", id);
   }
 
+  @Transactional
   @Override
   public Set<CitizenEntity> createCitizens(List<CreateCitizenRequest> requests) {
     log.info("Creating bulk citizens: total {}", requests.size());
@@ -138,6 +145,7 @@ public class CitizenServiceImpl implements CitizenService {
         .toList();
 
     var saved = citizenRepository.saveAll(entities);
+    createOutboxCitizenEventBulk(saved);
     log.info("Bulk creation completed. Total created: {}", saved.size());
 
     return new HashSet<>(saved);
@@ -159,6 +167,42 @@ public class CitizenServiceImpl implements CitizenService {
           log.warn("Citizen not found with ID: {}", id);
           return new EntityNotFoundException("Citizen not found with id: " + id);
         });
+  }
+
+  private <T extends SpecificRecordBase> void createOutboxCitizenEvent(UUID citizenId, T event, String topic) {
+    var serializedEvent = avroSerializer.serialize(event);
+    OutboxCitizenEventEntity outboxEvent = OutboxCitizenEventEntity.builder()
+        .aggregateId(citizenId)
+        .aggregateType("Citizen")
+        .type(event.getClass().getSimpleName())
+        .payload(serializedEvent)
+        .processed(false)
+        .topic(topic)
+        .createdAt(Instant.now())
+        .build();
+    outboxCitizenEventRepository.save(outboxEvent);
+    log.info("Outbox event created for citizen with ID: {}", citizenId);
+  }
+
+  private void createOutboxCitizenEventBulk(List<CitizenEntity> citizenEntities) {
+    var outboxEvents = citizenEntities.stream()
+        .map(citizen -> {
+          var event = citizenEventMapper.toCreatedEvent(citizen);
+          return OutboxCitizenEventEntity.builder()
+              .id(UUID.randomUUID()) // -> necessary for bulk creation
+              .aggregateId(citizen.getId())
+              .aggregateType("Citizen")
+              .type(event.getClass().getSimpleName())
+              .payload(avroSerializer.serialize(event))
+              .processed(false)
+              .createdAt(Instant.now())
+              .topic(kafkaTopics.getCitizenCreated())
+              .build();
+        })
+        .collect(Collectors.toList());
+
+    outboxCitizenEventRepository.saveAll(outboxEvents);
+    log.info("Bulk outbox events created: total {}", outboxEvents.size());
   }
 }
 

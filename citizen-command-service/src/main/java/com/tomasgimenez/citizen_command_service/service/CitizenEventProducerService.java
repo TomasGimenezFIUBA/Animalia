@@ -1,11 +1,10 @@
 package com.tomasgimenez.citizen_command_service.service;
 
-import com.tomasgimenez.animalia.avro.CitizenCreatedEvent;
-import com.tomasgimenez.animalia.avro.CitizenDeletedEvent;
-import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
-interface CitizenEventProducerService {
-  void sendCitizenCreatedEvent(CitizenCreatedEvent event);
-  void sendCitizenUpdatedEvent(CitizenUpdatedEvent event);
-  void sendCitizenDeletedEvent(CitizenDeletedEvent event);
+import org.springframework.kafka.support.SendResult;
+
+public interface CitizenEventProducerService {
+  CompletableFuture<SendResult<String, byte[]>> sendCitizenEvent(String key, byte[] payload, String topic, Consumer<SendResult<String, byte[]>> onSuccess);
 }

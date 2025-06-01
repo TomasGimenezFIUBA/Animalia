@@ -11,6 +11,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import com.tomasgimenez.citizen_command_service.config.KafkaProperties;
+import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 public class KafkaTopicCreator implements CommandLineRunner {
 
   private final KafkaProperties kafkaProps;
+  private final KafkaTopics kafkaTopics;
 
   @Override
   public void run(String... args) {
@@ -28,9 +30,9 @@ public class KafkaTopicCreator implements CommandLineRunner {
     config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProps.getBootstrapServers());
     try (AdminClient admin = AdminClient.create(config)) {
       List<String> topicsToCreate = List.of(
-          kafkaProps.getTopic().getCitizenCreated(),
-          kafkaProps.getTopic().getCitizenUpdated(),
-          kafkaProps.getTopic().getCitizenDeleted()
+          kafkaTopics.getCitizenCreated(),
+          kafkaTopics.getCitizenUpdated(),
+          kafkaTopics.getCitizenDeleted()
       );
 
       Set<String> existing = admin.listTopics().names().get();

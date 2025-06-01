@@ -15,7 +15,10 @@ import com.tomasgimenez.citizen_command_service.model.dto.CitizenDTO;
 import com.tomasgimenez.citizen_command_service.model.dto.SpeciesDTO;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 
+import lombok.Setter;
+
 @Component
+@Setter
 public class CitizenEventMapper {
   @Value("${spring.application.name}")
   private String source;

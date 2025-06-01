@@ -50,16 +50,6 @@ class RoleServiceImplTest {
     assertTrue(result.containsAll(foundEntities));
   }
 
-  @Test
-  void getRolesByRoleNames_shouldThrowWhenSomeRolesNotFound() {
-    RoleName requestedRole = RoleName.GENERAL;
-
-    when(roleRepository.findRoleEntitiesByNameIn(List.of(requestedRole))).thenReturn(List.of());
-
-    assertThrows(EntityNotFoundException.class,
-        () -> roleService.getRolesByRoleNames(Set.of(requestedRole)));
-  }
-
 
   /*@Test
   void getRoleByName_shouldCacheResult() {

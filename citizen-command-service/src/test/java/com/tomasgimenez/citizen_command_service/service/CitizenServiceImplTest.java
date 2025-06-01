@@ -15,11 +15,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
+import com.tomasgimenez.citizen_command_service.kafka.AvroSerializer;
+import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.*;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
+import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +36,13 @@ class CitizenServiceImplTest {
   private RolePolicyValidator rolePolicyValidator;
   private RoleService roleService;
   private CitizenServiceImpl citizenService;
+  private CitizenEventMapper citizenEventMapper;
+  private OutboxCitizenEventRepository outboxCitizenEventRepository;
+  private AvroSerializer avroSerializer;
+  private KafkaTopics kafkaTopics;
+  private CitizenEntity citizen;
+  private SpeciesEntity species;
+  private RoleEntity role;
 
   @BeforeEach
   void setUp() {
@@ -39,41 +50,36 @@ class CitizenServiceImplTest {
     speciesService = mock(SpeciesService.class);
     rolePolicyValidator = mock(RolePolicyValidator.class);
     roleService = mock(RoleService.class);
+    citizenEventMapper = new CitizenEventMapper();
+    citizenEventMapper.setSource("test-source");
+    outboxCitizenEventRepository = mock(OutboxCitizenEventRepository.class);
+    avroSerializer = mock(AvroSerializer.class);
+    kafkaTopics = mock(KafkaTopics.class);
 
     citizenService = new CitizenServiceImpl(
-        citizenRepository, speciesService, roleService);
+        citizenRepository, speciesService, roleService, citizenEventMapper,
+        outboxCitizenEventRepository, avroSerializer, kafkaTopics
+    );
     citizenService.setRolePolicyValidator(rolePolicyValidator);
-  }
 
+    species = new SpeciesEntity(UUID.randomUUID(), "Lion", 190.0, 1.2);
+    role = new RoleEntity(UUID.randomUUID(), RoleName.CIVIL);
+    citizen = new CitizenEntity(UUID.randomUUID(), "Leo", true, species, Set.of(role));
+  }
   @Test
   void createCitizen_shouldCreateSuccessfully() {
-    UUID speciesId = UUID.randomUUID();
-    Set<RoleName> roles = Set.of(RoleName.CIVIL);
-    CreateCitizenRequest request = new CreateCitizenRequest("Luna", speciesId, true, roles);
+    Set<RoleName> roles = Set.of(role.getName());
+    CreateCitizenRequest request = new CreateCitizenRequest("Luna", species.getId(), true, roles);
 
-    SpeciesEntity species = new SpeciesEntity();
-    species.setId(speciesId);
-
-    RoleEntity role = new RoleEntity();
-    role.setName(RoleName.CIVIL);
-
-    CitizenEntity savedEntity = CitizenEntity.builder()
-        .id(UUID.randomUUID())
-        .name("Luna")
-        .hasHumanPet(true)
-        .roles(Set.of(role))
-        .species(species)
-        .build();
-
-    when(speciesService.getById(speciesId)).thenReturn(species);
+    when(speciesService.getById(species.getId())).thenReturn(species);
     when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(role));
-    when(citizenRepository.save(any())).thenReturn(savedEntity);
+    when(citizenRepository.save(any())).thenReturn(citizen);
 
-    CitizenEntity result = citizenService.createCitizen(request);
+    citizenService.createCitizen(request);
 
-    assertEquals("Luna", result.getName());
     verify(rolePolicyValidator).validate(roles, Optional.empty());
     verify(citizenRepository).save(any());
+    verify(outboxCitizenEventRepository).save(any(OutboxCitizenEventEntity.class));
   }
 
   @Test
@@ -88,11 +94,11 @@ class CitizenServiceImplTest {
         new CreateCitizenRequest("B", s2, false, r2)
     );
 
-    SpeciesEntity spec1 = new SpeciesEntity(); spec1.setId(s1);
-    SpeciesEntity spec2 = new SpeciesEntity(); spec2.setId(s2);
+    SpeciesEntity spec1 = new SpeciesEntity(s1, "s1", 12.0, 12.0);
+    SpeciesEntity spec2 = new SpeciesEntity(s2, "s2", 12.0, 12.0);
 
-    RoleEntity civ = new RoleEntity(); civ.setName(RoleName.CIVIL);
-    RoleEntity gen = new RoleEntity(); gen.setName(RoleName.GENERAL);
+    RoleEntity civ = new RoleEntity(UUID.randomUUID(), RoleName.CIVIL);
+    RoleEntity gen = new RoleEntity(UUID.randomUUID(), RoleName.GENERAL);
 
     when(speciesService.getByIds(Set.of(s1, s2))).thenReturn(Set.of(spec1, spec2));
     when(roleService.getRolesByRoleNames(Set.of(RoleName.CIVIL, RoleName.GENERAL)))
@@ -107,28 +113,23 @@ class CitizenServiceImplTest {
     assertTrue(result.stream().anyMatch(c -> c.getName().equals("B")));
     verify(rolePolicyValidator).validateBulk(List.of(r1, r2));
     verify(citizenRepository).saveAll(any());
+    verify(outboxCitizenEventRepository).saveAll(any(List.class));
   }
 
   @Test
   void getCitizensByRoleName_shouldReturnCitizensSuccessfully() {
-    RoleName roleName = RoleName.CIVIL;
+    CitizenEntity citizen2 = new CitizenEntity(
+        UUID.randomUUID(), "Jane Doe", false, species, Set.of(role)
+    );
 
-    CitizenEntity citizen1 = new CitizenEntity();
-    citizen1.setId(UUID.randomUUID());
-    citizen1.setName("John Doe");
+    when(citizenRepository.findByRoleName(role.getName())).thenReturn(List.of(citizen, citizen2));
 
-    CitizenEntity citizen2 = new CitizenEntity();
-    citizen2.setId(UUID.randomUUID());
-    citizen2.setName("Jane Doe");
-
-    when(citizenRepository.findByRoleName(roleName)).thenReturn(List.of(citizen1, citizen2));
-
-    Set<CitizenEntity> result = citizenService.getCitizensByRoleName(roleName);
+    Set<CitizenEntity> result = citizenService.getCitizensByRoleName(role.getName());
 
     assertEquals(2, result.size());
-    assertTrue(result.stream().anyMatch(c -> c.getName().equals("John Doe")));
-    assertTrue(result.stream().anyMatch(c -> c.getName().equals("Jane Doe")));
-    verify(citizenRepository).findByRoleName(roleName);
+    assertTrue(result.stream().anyMatch(c -> c.getName().equals(citizen.getName())));
+    assertTrue(result.stream().anyMatch(c -> c.getName().equals(citizen2.getName())));
+    verify(citizenRepository).findByRoleName(role.getName());
   }
 
   @Test
@@ -178,95 +179,78 @@ class CitizenServiceImplTest {
     UUID id = UUID.randomUUID();
     citizenService.deleteCitizen(id);
     verify(citizenRepository).deleteById(id);
+    verify(outboxCitizenEventRepository).save(any(OutboxCitizenEventEntity.class));
   }
 
   @Test
   void updateCitizen_shouldUpdateFieldsSuccessfully() {
-    UUID id = UUID.randomUUID();
-    UpdateCitizenRequest request = new UpdateCitizenRequest(id, "Milo", null, true, null);
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), "Milo", null, true, null);
 
-    CitizenEntity entity = new CitizenEntity();
-    entity.setId(id);
-    entity.setName("OldName");
-
-    when(citizenRepository.findById(id)).thenReturn(Optional.of(entity));
+    when(citizenRepository.findById(citizen.getId())).thenReturn(Optional.of(citizen));
+    when(citizenRepository.save(any(CitizenEntity.class))).thenReturn(citizen);
 
     citizenService.updateCitizen(request);
 
-    assertEquals("Milo", entity.getName());
-    assertTrue(entity.isHasHumanPet());
-    verify(citizenRepository).save(entity);
+    assertEquals(request.name(), citizen.getName());
+    assertTrue(citizen.isHasHumanPet());
+    verify(citizenRepository).save(citizen);
     verify(rolePolicyValidator, never()).validate(any(), any());
     verify(roleService, never()).getRolesByRoleNames(any());
     verify(speciesService, never()).getById(any());
+    verify(outboxCitizenEventRepository).save(any(OutboxCitizenEventEntity.class));
   }
 
   @Test
   void updateCitizen_shouldUpdateHasHumanPetSuccessfully() {
-    UUID id = UUID.randomUUID();
-    UpdateCitizenRequest request = new UpdateCitizenRequest(id, null, null, true, null);
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), null, null, true, null);
 
-    CitizenEntity entity = new CitizenEntity();
-    entity.setId(id);
-    entity.setHasHumanPet(false);
-
-    when(citizenRepository.findById(id)).thenReturn(Optional.of(entity));
+    when(citizenRepository.findById(citizen.getId())).thenReturn(Optional.of(citizen));
+    when(citizenRepository.save(citizen)).thenReturn(citizen);
 
     citizenService.updateCitizen(request);
 
-    assertTrue(entity.isHasHumanPet());
-    verify(citizenRepository).save(entity);
+    assertTrue(citizen.isHasHumanPet());
+    verify(citizenRepository).save(citizen);
     verify(rolePolicyValidator, never()).validate(any(), any());
     verify(roleService, never()).getRolesByRoleNames(any());
     verify(speciesService, never()).getById(any());
+    verify(outboxCitizenEventRepository).save(any(OutboxCitizenEventEntity.class));
   }
 
   @Test
   void updateCitizen_shouldUpdateSpeciesSuccessfully() {
-    UUID id = UUID.randomUUID();
-    UUID speciesId = UUID.randomUUID();
-    UpdateCitizenRequest request = new UpdateCitizenRequest(id, null, speciesId, null, null);
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), null, species.getId(), null, null);
 
-    CitizenEntity entity = new CitizenEntity();
-    entity.setId(id);
-
-    SpeciesEntity species = new SpeciesEntity();
-    species.setId(speciesId);
-
-    when(citizenRepository.findById(id)).thenReturn(Optional.of(entity));
-    when(speciesService.getById(speciesId)).thenReturn(species);
+    when(citizenRepository.findById(citizen.getId())).thenReturn(Optional.of(citizen));
+    when(speciesService.getById(species.getId())).thenReturn(species);
+    when(citizenRepository.save(citizen)).thenReturn(citizen);
 
     citizenService.updateCitizen(request);
 
-    assertEquals(species, entity.getSpecies());
-    verify(citizenRepository).save(entity);
+    assertEquals(species, citizen.getSpecies());
+    verify(citizenRepository).save(citizen);
     verify(rolePolicyValidator, never()).validate(any(), any());
     verify(roleService, never()).getRolesByRoleNames(any());
-    verify(speciesService).getById(speciesId);
+    verify(speciesService).getById(species.getId());
   }
 
   @Test
   void updateCitizen_shouldUpdateRolesSuccessfully() {
-    UUID id = UUID.randomUUID();
-    Set<RoleName> roleNames = Set.of(RoleName.CIVIL);
-    UpdateCitizenRequest request = new UpdateCitizenRequest(id, null, null, null, roleNames);
+    Set<RoleName> roleNames = Set.of(role.getName());
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), null, null, null, roleNames);
 
-    CitizenEntity entity = new CitizenEntity();
-    entity.setId(id);
-
-    RoleEntity role = new RoleEntity();
-    role.setName(RoleName.CIVIL);
-
-    when(citizenRepository.findById(id)).thenReturn(Optional.of(entity));
+    when(citizenRepository.findById(citizen.getId())).thenReturn(Optional.of(citizen));
     when(roleService.getRolesByRoleNames(roleNames)).thenReturn(Set.of(role));
+    when(citizenRepository.save(any(CitizenEntity.class))).thenReturn(citizen);
 
     citizenService.updateCitizen(request);
 
-    assertEquals(Set.of(role), entity.getRoles());
-    verify(rolePolicyValidator).validate(roleNames, Optional.of(id));
-    verify(citizenRepository).save(entity);
+    assertEquals(Set.of(role), citizen.getRoles());
+    verify(rolePolicyValidator).validate(roleNames, Optional.of(citizen.getId()));
+    verify(citizenRepository).save(citizen);
     verify(roleService).getRolesByRoleNames(roleNames);
     verify(speciesService, never()).getById(any());
+    verify(outboxCitizenEventRepository).save(any(OutboxCitizenEventEntity.class));
   }
 
   @Test
