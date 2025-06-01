@@ -3,16 +3,14 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.0</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<groupId>com.tomasgimenez</groupId>
+		<artifactId>animalia</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
 	</parent>
-	<groupId>com.tomasgimenez</groupId>
 	<artifactId>citizen-command-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>citizen-command-service</name>
-	<description>MultiProject for Cititzen Comand Microservice from Animalia Backend Challenge</description>
+	<description>Citizen Command Service</description>
 	<url/>
 	<licenses>
 		<license/>
