@@ -1,14 +1,14 @@
-package com.tomasgimenez.citizen_command_service.kafka;
-
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.io.DatumWriter;
-import org.springframework.stereotype.Component;
+package com.tomasgimenez.citizen_common.kafka;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.springframework.stereotype.Component;
 
 @Component
 public class AvroSerializer {

@@ -39,7 +39,7 @@ public class KafkaTopicCreator implements CommandLineRunner {
 
       for (String topic : topicsToCreate) {
         if (!existing.contains(topic)) {
-          admin.createTopics(List.of(new NewTopic(topic, 1, (short) 1)));
+          admin.createTopics(List.of(new NewTopic(topic, kafkaTopics.getPartitions(), kafkaTopics.getReplicationFactor())));
           log.info("Topic created: " + topic);
         }
       }

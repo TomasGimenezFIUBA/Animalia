@@ -36,9 +36,21 @@ services:
     networks:
       - animalia-net
 
+  redis-quarantine:
+    image: redis:7
+    container_name: redis-quarantine
+    ports:
+      - "6379:6379"
+    networks:
+      - animalia-net
+    volumes:
+      - redis-quarantine-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+
 volumes:
   postgres-data:
   kafka-animalia-data:
+  redis-quarantine-data:
 
 networks:
   animalia-net:

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
-import com.tomasgimenez.citizen_command_service.kafka.AvroSerializer;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.OutboxCitizenEventEntity;
@@ -24,6 +23,7 @@ import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenReque
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
 import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
+import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;

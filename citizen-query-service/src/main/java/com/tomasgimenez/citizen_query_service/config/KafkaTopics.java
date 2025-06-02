@@ -1,4 +1,4 @@
-package com.tomasgimenez.citizen_command_service.config;
+package com.tomasgimenez.citizen_query_service.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +14,7 @@ public class KafkaTopics {
     private String citizenCreated;
     private String citizenUpdated;
     private String citizenDeleted;
-    private String citizenEvent;
+    private String citizenQuarantine;
     private int partitions;
     private short replicationFactor;
 }

@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
-import com.tomasgimenez.citizen_command_service.kafka.AvroSerializer;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.*;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
@@ -24,6 +23,7 @@ import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenReque
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
 import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
+import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;

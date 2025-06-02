@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+
+import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +37,11 @@ public class KafkaConfig {
   @Bean
   public KafkaTemplate<String, byte[]> kafkaTemplate() {
     return new KafkaTemplate<>(producerFactory());
+  }
+
+  @Bean
+  public AvroSerializer avroSerializer() {
+    return new AvroSerializer();
   }
 }
 
