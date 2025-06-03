@@ -1,12 +1,15 @@
 package com.tomasgimenez.citizen_query_service.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+
 @Service
 @RequiredArgsConstructor
+@Setter
 public class RedisQuarantineServiceImpl implements QuarantineService {
 
     private static final String FAILURE_COUNT_KEY = "citizen:failureCount";

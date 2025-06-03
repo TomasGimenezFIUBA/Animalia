@@ -13,10 +13,10 @@ import org.apache.avro.message.SchemaStore;
 
 @org.apache.avro.specific.AvroGenerated
 public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = -5540103503240198433L;
+  private static final long serialVersionUID = 1555516005741269361L;
 
 
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"CitizenUpdatedEvent\",\"namespace\":\"com.tomasgimenez.animalia.avro\",\"fields\":[{\"name\":\"eventId\",\"type\":\"string\"},{\"name\":\"timestamp\",\"type\":\"string\"},{\"name\":\"source\",\"type\":\"string\"},{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"hasHumanPet\",\"type\":\"boolean\"},{\"name\":\"species\",\"type\":{\"type\":\"record\",\"name\":\"Species\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"weight\",\"type\":\"double\"},{\"name\":\"height\",\"type\":\"double\"}]}},{\"name\":\"roleNames\",\"type\":{\"type\":\"array\",\"items\":\"string\"}}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"CitizenUpdatedEvent\",\"namespace\":\"com.tomasgimenez.animalia.avro\",\"fields\":[{\"name\":\"eventId\",\"type\":\"string\"},{\"name\":\"timestamp\",\"type\":\"string\"},{\"name\":\"source\",\"type\":\"string\"},{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"name\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"hasHumanPet\",\"type\":[\"null\",\"boolean\"],\"default\":null},{\"name\":\"species\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Species\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"weight\",\"type\":\"double\"},{\"name\":\"height\",\"type\":\"double\"}]}],\"default\":null},{\"name\":\"roleNames\",\"type\":[\"null\",{\"type\":\"array\",\"items\":\"string\"}],\"default\":null}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
 
   private static final SpecificData MODEL$ = new SpecificData();
@@ -77,7 +77,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
   private java.lang.CharSequence source;
   private java.lang.CharSequence id;
   private java.lang.CharSequence name;
-  private boolean hasHumanPet;
+  private java.lang.Boolean hasHumanPet;
   private com.tomasgimenez.animalia.avro.Species species;
   private java.util.List<java.lang.CharSequence> roleNames;
 
@@ -238,7 +238,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
    * Gets the value of the 'hasHumanPet' field.
    * @return The value of the 'hasHumanPet' field.
    */
-  public boolean getHasHumanPet() {
+  public java.lang.Boolean getHasHumanPet() {
     return hasHumanPet;
   }
 
@@ -247,7 +247,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
    * Sets the value of the 'hasHumanPet' field.
    * @param value the value to set.
    */
-  public void setHasHumanPet(boolean value) {
+  public void setHasHumanPet(java.lang.Boolean value) {
     this.hasHumanPet = value;
   }
 
@@ -331,7 +331,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
     private java.lang.CharSequence source;
     private java.lang.CharSequence id;
     private java.lang.CharSequence name;
-    private boolean hasHumanPet;
+    private java.lang.Boolean hasHumanPet;
     private com.tomasgimenez.animalia.avro.Species species;
     private com.tomasgimenez.animalia.avro.Species.Builder speciesBuilder;
     private java.util.List<java.lang.CharSequence> roleNames;
@@ -629,7 +629,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
       * Gets the value of the 'hasHumanPet' field.
       * @return The value.
       */
-    public boolean getHasHumanPet() {
+    public java.lang.Boolean getHasHumanPet() {
       return hasHumanPet;
     }
 
@@ -639,7 +639,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
       * @param value The value of 'hasHumanPet'.
       * @return This builder.
       */
-    public com.tomasgimenez.animalia.avro.CitizenUpdatedEvent.Builder setHasHumanPet(boolean value) {
+    public com.tomasgimenez.animalia.avro.CitizenUpdatedEvent.Builder setHasHumanPet(java.lang.Boolean value) {
       validate(fields()[5], value);
       this.hasHumanPet = value;
       fieldSetFlags()[5] = true;
@@ -660,6 +660,7 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
       * @return This builder.
       */
     public com.tomasgimenez.animalia.avro.CitizenUpdatedEvent.Builder clearHasHumanPet() {
+      hasHumanPet = null;
       fieldSetFlags()[5] = false;
       return this;
     }
@@ -842,24 +843,48 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
 
     out.writeString(this.id);
 
-    out.writeString(this.name);
-
-    out.writeBoolean(this.hasHumanPet);
-
-    this.species.customEncode(out);
-
-    long size0 = this.roleNames.size();
-    out.writeArrayStart();
-    out.setItemCount(size0);
-    long actualSize0 = 0;
-    for (java.lang.CharSequence e0: this.roleNames) {
-      actualSize0++;
-      out.startItem();
-      out.writeString(e0);
+    if (this.name == null) {
+      out.writeIndex(0);
+      out.writeNull();
+    } else {
+      out.writeIndex(1);
+      out.writeString(this.name);
     }
-    out.writeArrayEnd();
-    if (actualSize0 != size0)
-      throw new java.util.ConcurrentModificationException("Array-size written was " + size0 + ", but element count was " + actualSize0 + ".");
+
+    if (this.hasHumanPet == null) {
+      out.writeIndex(0);
+      out.writeNull();
+    } else {
+      out.writeIndex(1);
+      out.writeBoolean(this.hasHumanPet);
+    }
+
+    if (this.species == null) {
+      out.writeIndex(0);
+      out.writeNull();
+    } else {
+      out.writeIndex(1);
+      this.species.customEncode(out);
+    }
+
+    if (this.roleNames == null) {
+      out.writeIndex(0);
+      out.writeNull();
+    } else {
+      out.writeIndex(1);
+      long size0 = this.roleNames.size();
+      out.writeArrayStart();
+      out.setItemCount(size0);
+      long actualSize0 = 0;
+      for (java.lang.CharSequence e0: this.roleNames) {
+        actualSize0++;
+        out.startItem();
+        out.writeString(e0);
+      }
+      out.writeArrayEnd();
+      if (actualSize0 != size0)
+        throw new java.util.ConcurrentModificationException("Array-size written was " + size0 + ", but element count was " + actualSize0 + ".");
+    }
 
   }
 
@@ -876,27 +901,47 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
 
       this.id = in.readString(this.id instanceof Utf8 ? (Utf8)this.id : null);
 
-      this.name = in.readString(this.name instanceof Utf8 ? (Utf8)this.name : null);
-
-      this.hasHumanPet = in.readBoolean();
-
-      if (this.species == null) {
-        this.species = new com.tomasgimenez.animalia.avro.Species();
+      if (in.readIndex() != 1) {
+        in.readNull();
+        this.name = null;
+      } else {
+        this.name = in.readString(this.name instanceof Utf8 ? (Utf8)this.name : null);
       }
-      this.species.customDecode(in);
 
-      long size0 = in.readArrayStart();
-      java.util.List<java.lang.CharSequence> a0 = this.roleNames;
-      if (a0 == null) {
-        a0 = new SpecificData.Array<java.lang.CharSequence>((int)size0, SCHEMA$.getField("roleNames").schema());
-        this.roleNames = a0;
-      } else a0.clear();
-      SpecificData.Array<java.lang.CharSequence> ga0 = (a0 instanceof SpecificData.Array ? (SpecificData.Array<java.lang.CharSequence>)a0 : null);
-      for ( ; 0 < size0; size0 = in.arrayNext()) {
-        for ( ; size0 != 0; size0--) {
-          java.lang.CharSequence e0 = (ga0 != null ? ga0.peek() : null);
-          e0 = in.readString(e0 instanceof Utf8 ? (Utf8)e0 : null);
-          a0.add(e0);
+      if (in.readIndex() != 1) {
+        in.readNull();
+        this.hasHumanPet = null;
+      } else {
+        this.hasHumanPet = in.readBoolean();
+      }
+
+      if (in.readIndex() != 1) {
+        in.readNull();
+        this.species = null;
+      } else {
+        if (this.species == null) {
+          this.species = new com.tomasgimenez.animalia.avro.Species();
+        }
+        this.species.customDecode(in);
+      }
+
+      if (in.readIndex() != 1) {
+        in.readNull();
+        this.roleNames = null;
+      } else {
+        long size0 = in.readArrayStart();
+        java.util.List<java.lang.CharSequence> a0 = this.roleNames;
+        if (a0 == null) {
+          a0 = new SpecificData.Array<java.lang.CharSequence>((int)size0, SCHEMA$.getField("roleNames").schema().getTypes().get(1));
+          this.roleNames = a0;
+        } else a0.clear();
+        SpecificData.Array<java.lang.CharSequence> ga0 = (a0 instanceof SpecificData.Array ? (SpecificData.Array<java.lang.CharSequence>)a0 : null);
+        for ( ; 0 < size0; size0 = in.arrayNext()) {
+          for ( ; size0 != 0; size0--) {
+            java.lang.CharSequence e0 = (ga0 != null ? ga0.peek() : null);
+            e0 = in.readString(e0 instanceof Utf8 ? (Utf8)e0 : null);
+            a0.add(e0);
+          }
         }
       }
 
@@ -920,33 +965,53 @@ public class CitizenUpdatedEvent extends org.apache.avro.specific.SpecificRecord
           break;
 
         case 4:
-          this.name = in.readString(this.name instanceof Utf8 ? (Utf8)this.name : null);
+          if (in.readIndex() != 1) {
+            in.readNull();
+            this.name = null;
+          } else {
+            this.name = in.readString(this.name instanceof Utf8 ? (Utf8)this.name : null);
+          }
           break;
 
         case 5:
-          this.hasHumanPet = in.readBoolean();
+          if (in.readIndex() != 1) {
+            in.readNull();
+            this.hasHumanPet = null;
+          } else {
+            this.hasHumanPet = in.readBoolean();
+          }
           break;
 
         case 6:
-          if (this.species == null) {
-            this.species = new com.tomasgimenez.animalia.avro.Species();
+          if (in.readIndex() != 1) {
+            in.readNull();
+            this.species = null;
+          } else {
+            if (this.species == null) {
+              this.species = new com.tomasgimenez.animalia.avro.Species();
+            }
+            this.species.customDecode(in);
           }
-          this.species.customDecode(in);
           break;
 
         case 7:
-          long size0 = in.readArrayStart();
-          java.util.List<java.lang.CharSequence> a0 = this.roleNames;
-          if (a0 == null) {
-            a0 = new SpecificData.Array<java.lang.CharSequence>((int)size0, SCHEMA$.getField("roleNames").schema());
-            this.roleNames = a0;
-          } else a0.clear();
-          SpecificData.Array<java.lang.CharSequence> ga0 = (a0 instanceof SpecificData.Array ? (SpecificData.Array<java.lang.CharSequence>)a0 : null);
-          for ( ; 0 < size0; size0 = in.arrayNext()) {
-            for ( ; size0 != 0; size0--) {
-              java.lang.CharSequence e0 = (ga0 != null ? ga0.peek() : null);
-              e0 = in.readString(e0 instanceof Utf8 ? (Utf8)e0 : null);
-              a0.add(e0);
+          if (in.readIndex() != 1) {
+            in.readNull();
+            this.roleNames = null;
+          } else {
+            long size0 = in.readArrayStart();
+            java.util.List<java.lang.CharSequence> a0 = this.roleNames;
+            if (a0 == null) {
+              a0 = new SpecificData.Array<java.lang.CharSequence>((int)size0, SCHEMA$.getField("roleNames").schema().getTypes().get(1));
+              this.roleNames = a0;
+            } else a0.clear();
+            SpecificData.Array<java.lang.CharSequence> ga0 = (a0 instanceof SpecificData.Array ? (SpecificData.Array<java.lang.CharSequence>)a0 : null);
+            for ( ; 0 < size0; size0 = in.arrayNext()) {
+              for ( ; size0 != 0; size0--) {
+                java.lang.CharSequence e0 = (ga0 != null ? ga0.peek() : null);
+                e0 = in.readString(e0 instanceof Utf8 ? (Utf8)e0 : null);
+                a0.add(e0);
+              }
             }
           }
           break;

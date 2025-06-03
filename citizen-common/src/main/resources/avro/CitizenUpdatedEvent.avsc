@@ -8,20 +8,20 @@
     { "name": "source", "type": "string" },
 
     { "name": "id", "type": "string" },
-    { "name": "name", "type": "string" },
-    { "name": "hasHumanPet", "type": "boolean" },
+
+    { "name": "name", "type": ["null", "string"], "default": null },
+    { "name": "hasHumanPet", "type": ["null", "boolean"], "default": null },
 
     {
       "name": "species",
-      "type": "Species"
+      "type": ["null", "Species"],
+      "default": null
     },
 
     {
       "name": "roleNames",
-      "type": {
-        "type": "array",
-        "items": "string"
-      }
+      "type": ["null", { "type": "array", "items": "string" }],
+      "default": null
     }
   ]
 }

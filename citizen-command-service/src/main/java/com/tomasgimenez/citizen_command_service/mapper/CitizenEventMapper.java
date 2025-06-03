@@ -4,11 +4,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.tomasgimenez.animalia.avro.CitizenCreatedEvent;
 import com.tomasgimenez.animalia.avro.CitizenDeletedEvent;
+import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
+import com.tomasgimenez.animalia.avro.CitizenEventType;
 import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
 import com.tomasgimenez.animalia.avro.Species;
 import com.tomasgimenez.citizen_command_service.model.dto.CitizenDTO;
@@ -22,9 +25,10 @@ import lombok.Setter;
 public class CitizenEventMapper {
   @Value("${spring.application.name}")
   private String source;
-  public CitizenCreatedEvent toCreatedEvent(CitizenEntity citizen) {
+
+  public CitizenEventEnvelope toCreatedEvent(CitizenEntity citizen) {
     var dto = CitizenDTO.fromEntity(citizen);
-    return CitizenCreatedEvent.newBuilder()
+    var event = CitizenCreatedEvent.newBuilder()
         .setEventId(UUID.randomUUID().toString())
         .setTimestamp(Instant.now().toString())
         .setSource(source)
@@ -33,6 +37,41 @@ public class CitizenEventMapper {
         .setHasHumanPet(dto.hasHumanPet())
         .setSpecies(toSpeciesAvro(dto.speciesDTO()))
         .setRoleNames(new ArrayList<>(dto.roleNames().stream().map(Enum::name).toList()))
+        .build();
+    return toEnvelopeEvent(event, CitizenEventType.CREATED);
+  }
+
+  public CitizenEventEnvelope toUpdatedEvent(CitizenEntity entity) {
+    var dto = CitizenDTO.fromEntity(entity);
+    var event = CitizenUpdatedEvent.newBuilder()
+        .setEventId(UUID.randomUUID().toString())
+        .setTimestamp(Instant.now().toString())
+        .setSource(source)
+        .setId(dto.id().toString())
+        .setName(dto.name())
+        .setHasHumanPet(dto.hasHumanPet())
+        .setSpecies(toSpeciesAvro(dto.speciesDTO()))
+        .setRoleNames(new ArrayList<>(dto.roleNames().stream().map(Enum::name).toList()))
+        .build();
+    return toEnvelopeEvent(event, CitizenEventType.UPDATED);
+  }
+
+  public CitizenEventEnvelope toDeletedEvent(UUID id) {
+    var event = CitizenDeletedEvent.newBuilder()
+        .setEventId(UUID.randomUUID().toString())
+        .setTimestamp(Instant.now().toString())
+        .setSource(source)
+        .setId(id.toString())
+        .build();
+
+    return toEnvelopeEvent(event, CitizenEventType.DELETED);
+  }
+
+  private <T extends SpecificRecordBase> CitizenEventEnvelope toEnvelopeEvent(T event, CitizenEventType type) {
+    return CitizenEventEnvelope.newBuilder()
+        .setEventType(type)
+        .setEventId(UUID.randomUUID().toString())
+        .setPayload(event)
         .build();
   }
 
@@ -42,29 +81,6 @@ public class CitizenEventMapper {
         .setName(dto.name())
         .setWeight(dto.weight())
         .setHeight(dto.height())
-        .build();
-  }
-
-  public CitizenUpdatedEvent toUpdatedEvent(CitizenEntity entity) {
-    var dto = CitizenDTO.fromEntity(entity);
-    return CitizenUpdatedEvent.newBuilder()
-        .setEventId(UUID.randomUUID().toString())
-        .setTimestamp(Instant.now().toString())
-        .setSource(source)
-        .setId(dto.id().toString())
-        .setName(dto.name())
-        .setHasHumanPet(dto.hasHumanPet())
-        .setSpecies(toSpeciesAvro(dto.speciesDTO()))
-        .setRoleNames(new ArrayList<>(dto.roleNames().stream().map(Enum::name).toList()))
-        .build();
-  }
-
-  public CitizenDeletedEvent toDeletedEvent(UUID id) {
-    return CitizenDeletedEvent.newBuilder()
-        .setEventId(UUID.randomUUID().toString())
-        .setTimestamp(Instant.now().toString())
-        .setSource(source)
-        .setId(id.toString())
         .build();
   }
 }

@@ -8,11 +8,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
+import com.tomasgimenez.animalia.avro.CitizenEventType;
 import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
@@ -61,7 +62,7 @@ public class CitizenServiceImpl implements CitizenService {
         .build();
 
     var saved = citizenRepository.save(entity);
-    createOutboxCitizenEvent(saved.getId(), citizenEventMapper.toCreatedEvent(saved), kafkaTopics.getCitizenCreated());
+    createOutboxCitizenEvent(saved.getId(), citizenEventMapper.toCreatedEvent(saved), CitizenEventType.CREATED);
 
     log.info("Citizen created with ID: {}", saved.getId());
     return saved;
@@ -95,7 +96,7 @@ public class CitizenServiceImpl implements CitizenService {
     }
 
     var saved = citizenRepository.save(citizenEntity);
-    createOutboxCitizenEvent(citizenEntity.getId(), citizenEventMapper.toUpdatedEvent(saved), kafkaTopics.getCitizenUpdated());
+    createOutboxCitizenEvent(citizenEntity.getId(), citizenEventMapper.toUpdatedEvent(saved), CitizenEventType.UPDATED);
     log.info("Citizen with ID {} updated successfully", request.id());
   }
 
@@ -104,7 +105,7 @@ public class CitizenServiceImpl implements CitizenService {
   public void deleteCitizen(UUID id) {
     log.info("Deleting citizen with ID: {}", id);
     citizenRepository.deleteById(id);
-    createOutboxCitizenEvent(id, citizenEventMapper.toDeletedEvent(id), kafkaTopics.getCitizenDeleted());
+    createOutboxCitizenEvent(id, citizenEventMapper.toDeletedEvent(id), CitizenEventType.DELETED);
     log.info("Citizen with ID {} deleted", id);
   }
 
@@ -169,15 +170,15 @@ public class CitizenServiceImpl implements CitizenService {
         });
   }
 
-  private <T extends SpecificRecordBase> void createOutboxCitizenEvent(UUID citizenId, T event, String topic) {
+  private void createOutboxCitizenEvent(UUID citizenId, CitizenEventEnvelope event, CitizenEventType eventType) {
     var serializedEvent = avroSerializer.serialize(event);
     OutboxCitizenEventEntity outboxEvent = OutboxCitizenEventEntity.builder()
         .aggregateId(citizenId)
         .aggregateType("Citizen")
-        .type(event.getClass().getSimpleName())
+        .type(eventType.name())
         .payload(serializedEvent)
         .processed(false)
-        .topic(topic)
+        .topic(kafkaTopics.getCitizenEvent())
         .createdAt(Instant.now())
         .build();
     outboxCitizenEventRepository.save(outboxEvent);
@@ -192,11 +193,11 @@ public class CitizenServiceImpl implements CitizenService {
               .id(UUID.randomUUID()) // -> necessary for bulk creation
               .aggregateId(citizen.getId())
               .aggregateType("Citizen")
-              .type(event.getClass().getSimpleName())
+              .type(CitizenEventType.CREATED.name())
               .payload(avroSerializer.serialize(event))
               .processed(false)
               .createdAt(Instant.now())
-              .topic(kafkaTopics.getCitizenCreated())
+              .topic(kafkaTopics.getCitizenEvent())
               .build();
         })
         .collect(Collectors.toList());

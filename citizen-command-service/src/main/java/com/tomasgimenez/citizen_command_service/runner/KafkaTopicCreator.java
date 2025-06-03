@@ -30,9 +30,9 @@ public class KafkaTopicCreator implements CommandLineRunner {
     config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProps.getBootstrapServers());
     try (AdminClient admin = AdminClient.create(config)) {
       List<String> topicsToCreate = List.of(
-          kafkaTopics.getCitizenCreated(),
-          kafkaTopics.getCitizenUpdated(),
-          kafkaTopics.getCitizenDeleted()
+          kafkaTopics.getCitizenEvent(),
+          kafkaTopics.getCitizenEventDeadLetter(),
+          kafkaTopics.getCitizenQuarantine()
       );
 
       Set<String> existing = admin.listTopics().names().get();

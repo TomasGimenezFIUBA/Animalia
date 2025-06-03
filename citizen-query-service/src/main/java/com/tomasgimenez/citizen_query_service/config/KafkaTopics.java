@@ -11,9 +11,7 @@ import lombok.Setter;
 @Setter
 @Getter
 public class KafkaTopics {
-    private String citizenCreated;
-    private String citizenUpdated;
-    private String citizenDeleted;
+    private String citizenEvent;
     private String citizenQuarantine;
     private int partitions;
     private short replicationFactor;

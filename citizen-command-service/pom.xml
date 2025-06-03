@@ -27,12 +27,6 @@
 	<properties>
 		<java.version>21</java.version>
 	</properties>
-	<repositories>
-		<repository>
-			<id>confluent</id>
-			<url>https://packages.confluent.io/maven/</url>
-		</repository>
-	</repositories>
 
 	<dependencies>
 		<dependency>
@@ -96,6 +90,18 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>com.tomasgimenez.citizen_command_service.CitizenCommandServiceApplication</mainClass>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.13</version>
+				<configuration>
+					<excludes>
+						<exclude>com/tomasgimenez/citizen_command_service/config/**</exclude>
+						<exclude>com/tomasgimenez/citizen_command_service/exception/*Exception.class</exclude>
+						<exclude>com/tomasgimenez/citizen_command_service/model/**</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 		</plugins>

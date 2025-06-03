@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - animalia-postgres-data:/var/lib/postgresql/data
     networks:
       - animalia-net
 
@@ -47,10 +47,26 @@ services:
       - redis-quarantine-data:/data
     command: ["redis-server", "--appendonly", "yes"]
 
+  citizen-query-service-db:
+    image: mongo:7.0
+    container_name: citizen-query-service-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: citizensdb
+    volumes:
+      - animalia-citizen-mongo_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - animalia-net
+
 volumes:
-  postgres-data:
+  animalia-postgres-data:
   kafka-animalia-data:
   redis-quarantine-data:
+  animalia-citizen-mongo_data:
 
 networks:
   animalia-net:

@@ -1,8 +1,5 @@
 package com.tomasgimenez.citizen_query_service.messaging.kafka;
 
-import java.util.function.Consumer;
-
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -10,11 +7,13 @@ import org.springframework.stereotype.Component;
 
 import com.tomasgimenez.animalia.avro.CitizenCreatedEvent;
 import com.tomasgimenez.animalia.avro.CitizenDeletedEvent;
+import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
 import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
 import com.tomasgimenez.citizen_common.kafka.AvroDeserializer;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenEventHandler;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenListener;
 import com.tomasgimenez.citizen_query_service.messaging.QuarantinePublisher;
+import com.tomasgimenez.citizen_query_service.service.EventDeduplicationService;
 import com.tomasgimenez.citizen_query_service.service.QuarantineService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,52 +23,51 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class CitizenKafkaListener implements CitizenListener {
+
   private final AvroDeserializer avroDeserializer;
   private final CitizenEventHandler citizenEventHandler;
   private final QuarantineService quarantineService;
   private final QuarantinePublisher quarantinePublisher;
+  private final EventDeduplicationService eventDeduplicationService;
 
-  @KafkaListener(topics = "${kafka.topics.citizen-created}", groupId = "${kafka.consumer.group-id}",
-                 containerFactory = "kafkaListenerContainerFactory")
+  @KafkaListener(topics = "${kafka.topics.citizen-event}", groupId = "${kafka.consumer.group-id}",
+      containerFactory = "kafkaListenerContainerFactory")
   @Override
-  public void handleCitizenCreatedEvent(ConsumerRecord<String, byte[]> createdCitizenEventRecord, Acknowledgment ack) {
-    handleEvent(createdCitizenEventRecord, ack, CitizenCreatedEvent.class, citizenEventHandler::handleCreated);
-  }
+  public void handleCitizenEvent(ConsumerRecord<String, byte[]> citizenEventRecord, Acknowledgment ack) {
 
-  @KafkaListener(topics = "${kafka.topics.citizen-updated}", groupId = "${kafka.consumer.group-id}",
-                 containerFactory = "kafkaListenerContainerFactory")
-  @Override
-  public void handleCitizenUpdatedEvent(ConsumerRecord<String, byte[]> updatedCitizenEventRecord, Acknowledgment ack) {
-    handleEvent(updatedCitizenEventRecord, ack, CitizenUpdatedEvent.class, citizenEventHandler::handleUpdated);
-  }
+    String citizenId = citizenEventRecord.key();
 
-  @KafkaListener(topics = "${kafka.topics.citizen-deleted}", groupId = "${kafka.consumer.group-id}",
-                 containerFactory = "kafkaListenerContainerFactory")
-  @Override
-  public void handleCitizenDeletedEvent(ConsumerRecord<String, byte[]> deletedCitizenEventRecord, Acknowledgment ack) {
-    handleEvent(deletedCitizenEventRecord, ack, CitizenDeletedEvent.class, citizenEventHandler::handleDeleted);
-  }
-
-  private <T extends SpecificRecordBase> void handleEvent(ConsumerRecord<String, byte[]> consumerRecord, Acknowledgment ack,
-                           Class<T> eventClass,
-                           Consumer<T> eventHandler) {
-    String citizenId = consumerRecord.key();
-
-    if (handleQuarantine(citizenId, consumerRecord)) {
+    if (handleQuarantine(citizenId, citizenEventRecord)) {
       ack.acknowledge();
       return;
     }
 
     try {
-      T event = avroDeserializer.deserialize(consumerRecord.value(), eventClass);
-      eventHandler.accept(event);
+      CitizenEventEnvelope event = avroDeserializer.deserialize(citizenEventRecord.value(), CitizenEventEnvelope.class);
+
+      if (eventDeduplicationService.isEventProcessed(event.getEventId().toString())) {
+        log.info("Skipping already processed event: {}", event.getEventId());
+        ack.acknowledge();
+        return;
+      }
+
+      Object payload = event.getPayload();
+
+      switch (payload) {
+        case CitizenCreatedEvent createdEvent -> citizenEventHandler.handleCreated(createdEvent);
+        case CitizenUpdatedEvent updatedEvent -> citizenEventHandler.handleUpdated(updatedEvent);
+        case CitizenDeletedEvent deletedEvent -> citizenEventHandler.handleDeleted(deletedEvent);
+        default -> throw new IllegalArgumentException("Unknown payload type: " + payload.getClass());
+      }
+
       ack.acknowledge();
       quarantineService.resetQuarantineCounter(citizenId);
+      eventDeduplicationService.markEventAsProcessed(event.getEventId().toString());
     } catch (Exception e) {
       quarantineService.recordFailureForCitizen(citizenId);
-      handleQuarantine(citizenId, consumerRecord);
+      handleQuarantine(citizenId, citizenEventRecord);
 
-      log.error("Failed to process event for citizen {}: {}", citizenId, e.getMessage());
+      log.error("Failed to process event for citizen {}: {}", citizenId, e.getMessage(), e);
       throw e;
     }
   }
@@ -81,7 +79,6 @@ public class CitizenKafkaListener implements CitizenListener {
           "Citizen is in quarantine");
       return true;
     }
-
     return false;
   }
 }

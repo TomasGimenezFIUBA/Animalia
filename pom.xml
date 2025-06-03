@@ -17,8 +17,8 @@
     <url/>
     <modules>
         <module>citizen-common</module>
-        <module>citizen-query-service</module>
         <module>citizen-command-service</module>
+        <module>citizen-query-service</module>
     </modules>
     <licenses>
         <license/>
@@ -69,10 +69,6 @@
                     </compilerArgs>
                 </configuration>
             </plugin>
-            <!--<plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>-->
         </plugins>
     </build>
 
