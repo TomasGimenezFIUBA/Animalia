@@ -62,6 +62,37 @@ services:
     networks:
       - animalia-net
 
+#  citizen-query-service:
+#    build:
+#      context: .
+#      dockerfile: citizen-query-service/Dockerfile
+#    container_name: citizen-query-service
+#    ports:
+#      - "8090:8090"
+#    depends_on:
+#      - kafka-animalia
+#      - citizen-query-service-db
+#      - redis-quarantine
+#    environment:
+#      SPRING_PROFILES_ACTIVE: docker
+#    networks:
+#      - animalia-net
+#
+#  citizen-command-service:
+#    build:
+#      context: .
+#      dockerfile: citizen-command-service/Dockerfile
+#    container_name: citizen-command-service
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      - kafka-animalia
+#      - citizen-command-service-db
+#    environment:
+#      SPRING_PROFILES_ACTIVE: docker
+#    networks:
+#      - animalia-net
+
 volumes:
   animalia-postgres-data:
   kafka-animalia-data:
