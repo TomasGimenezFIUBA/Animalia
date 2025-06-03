@@ -17,8 +17,8 @@ services:
     image: bitnami/kafka:latest
     container_name: kafka-animalia
     ports:
-      - "9092:9092"    # Interno para contenedores
-      - "29092:29092"  # Externo para tu consola local
+      - "9092:9092"
+      - "29092:29092"
     environment:
       - KAFKA_ENABLE_KRAFT=true
       - KAFKA_CFG_NODE_ID=1
