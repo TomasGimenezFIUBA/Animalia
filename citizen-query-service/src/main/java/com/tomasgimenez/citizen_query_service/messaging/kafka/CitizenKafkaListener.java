@@ -46,7 +46,7 @@ public class CitizenKafkaListener implements CitizenListener {
       CitizenEventEnvelope event = avroDeserializer.deserialize(citizenEventRecord.value(), CitizenEventEnvelope.class);
 
       if (eventDeduplicationService.isEventProcessed(event.getEventId().toString())) {
-        log.info("Skipping already processed event: {}", event.getEventId());
+        log.warn("Skipping already processed event: {}", event.getEventId());
         ack.acknowledge();
         return;
       }

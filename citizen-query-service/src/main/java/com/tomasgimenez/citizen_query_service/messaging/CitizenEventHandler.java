@@ -25,8 +25,6 @@ public class CitizenEventHandler {
   private final CitizenService citizenService;
 
   public void handleCreated(CitizenCreatedEvent event) {
-    log.info("Received: {}", event);
-
     validateRequired(event.getId(), "CitizenCreatedEvent", "id");
     validateRequired(event.getSpecies(), "CitizenCreatedEvent", "species");
     validateRoles(event.getRoleNames(), event.getId());
@@ -40,12 +38,10 @@ public class CitizenEventHandler {
         .build();
 
     citizenService.insert(citizen);
-    log.info("Citizen with id {} created successfully", event.getId());
+    log.debug("Citizen with id {} created successfully", event.getId());
   }
 
   public void handleUpdated(CitizenUpdatedEvent event) {
-    log.info("Received: {}", event);
-
     validateRequired(event.getId(), "CitizenUpdatedEvent", "id");
 
     var citizen = new CitizenPatch(
@@ -56,16 +52,14 @@ public class CitizenEventHandler {
     );
 
     citizenService.update(event.getId().toString(), citizen);
-    log.info("Citizen with id {} updated successfully", event.getId());
+    log.debug("Citizen with id {} updated successfully", event.getId());
   }
 
   public void handleDeleted(CitizenDeletedEvent event) {
-    log.info("Received: {}", event);
-
     validateRequired(event.getId(), "CitizenDeletedEvent", "id");
 
     citizenService.deleteById(event.getId().toString());
-    log.info("Citizen with id {} deleted successfully", event.getId());
+    log.debug("Citizen with id {} deleted successfully", event.getId());
   }
 
   private void validateRequired(Object value, String eventName, String fieldName) {

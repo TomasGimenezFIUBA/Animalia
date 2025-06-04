@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PessimisticLockException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,5 +27,19 @@ public class EntityExceptionHandler {
     error.put("error", ex.getMessage() != null ? ex.getMessage() : "Role policy violation");
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
   }
+
+  @ExceptionHandler(EntityConflictException.class)
+  public ResponseEntity<Map<String, String>> handlePessimisticLockException(PessimisticLockException ex) {
+    Map<String, String> error = new HashMap<>();
+    error.put("error", "Resource is currently locked. Please try again later.");
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+  }
+
+  @ExceptionHandler(EntityPersistenceException.class)
+  public ResponseEntity<Map<String, String>> handleEntityPersistenceException(EntityPersistenceException ex) {
+    Map<String, String> error = new HashMap<>();
+    error.put("error", ex.getMessage() != null ? ex.getMessage() : "Error persisting entity");
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
 }
 

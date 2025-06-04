@@ -1,0 +1,11 @@
+groups:
+  - name: citizen_event_alerts
+    rules:
+      - alert: CitizenEventFailuresHigh
+        expr: increase(producing_failures_total{entity_type="CitizenEvent"}[5m]) > 3
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High failure rate in CitizenEvent processing"
+          description: "More than 3 failures in the last 5 minutes for CitizenEvent."

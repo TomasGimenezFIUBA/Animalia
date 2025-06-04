@@ -41,7 +41,7 @@ public class CitizenEntity {
       joinColumns = @JoinColumn(name = "citizen_id"),
       inverseJoinColumns = @JoinColumn(name = "role_id")
   )
-  private Set<RoleEntity> roles;
+  private Set<RoleEntity> roleEntities;
 
   @PrePersist
   private void prePersist() {

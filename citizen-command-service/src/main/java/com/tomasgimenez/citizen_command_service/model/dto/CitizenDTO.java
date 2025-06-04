@@ -17,7 +17,7 @@ public record CitizenDTO(
 ) {
   public static CitizenDTO fromEntity(CitizenEntity citizen) {
     var species = SpeciesDTO.fromEntity(citizen.getSpecies());
-    var roles = citizen.getRoles().stream().map(
+    var roles = citizen.getRoleEntities().stream().map(
         RoleEntity::getName).collect(Collectors.toSet());
     return new CitizenDTO(citizen.getId(), citizen.getName(), citizen.isHasHumanPet(), species, roles);
   }

@@ -9,15 +9,18 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
 import com.tomasgimenez.animalia.avro.CitizenEventType;
 import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
+import com.tomasgimenez.citizen_command_service.exception.EntityConflictException;
+import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
-import com.tomasgimenez.citizen_command_service.model.entity.OutboxCitizenEventEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
@@ -27,6 +30,7 @@ import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRep
 import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PessimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -42,127 +46,148 @@ public class CitizenServiceImpl implements CitizenService {
   private final OutboxCitizenEventRepository outboxCitizenEventRepository;
   private final AvroSerializer avroSerializer;
   private final KafkaTopics kafkaTopics;
-  @Autowired @Setter
+  @Setter
   private RolePolicyValidator rolePolicyValidator;
 
   @Transactional
   @Override
   public CitizenEntity createCitizen(CreateCitizenRequest request) {
-    log.info("Creating citizen with name: {}", request.name());
+    try {
+      var speciesEntity = speciesService.getById(request.speciesId());
+      rolePolicyValidator.validate(request.roleNames(), Optional.empty());
+      var roles = roleService.getRolesByRoleNames(request.roleNames());
 
-    var speciesEntity = speciesService.getById(request.speciesId());
-    rolePolicyValidator.validate(request.roleNames(), Optional.empty());
-    var roles = roleService.getRolesByRoleNames(request.roleNames());
+      var entity = CitizenEntity.builder()
+          .roleEntities(roles)
+          .name(request.name())
+          .hasHumanPet(request.hasHumanPet())
+          .species(speciesEntity)
+          .build();
 
-    var entity = CitizenEntity.builder()
-        .roles(roles)
-        .name(request.name())
-        .hasHumanPet(request.hasHumanPet())
-        .species(speciesEntity)
-        .build();
+      var saved = citizenRepository.save(entity);
+      createOutboxCitizenEvent(saved.getId(), citizenEventMapper.toCreatedEvent(saved), CitizenEventType.CREATED);
 
-    var saved = citizenRepository.save(entity);
-    createOutboxCitizenEvent(saved.getId(), citizenEventMapper.toCreatedEvent(saved), CitizenEventType.CREATED);
-
-    log.info("Citizen created with ID: {}", saved.getId());
-    return saved;
+      log.debug("Citizen created with ID: {}", saved.getId());
+      return saved;
+    } catch (EntityNotFoundException e) {
+      throw e;
+    } catch (Exception e) {
+      log.error("Persistence error creating citizen: {}", e.getMessage(), e);
+      throw new EntityPersistenceException("Error while creating citizen", e);
+    }
   }
 
   @Transactional
   @Override
   public void updateCitizen(UpdateCitizenRequest request) {
-    log.info("Updating citizen with ID: {}", request.id());
+    try {
+      var citizenOptional = citizenRepository.findByIdForUpdate(request.id());
 
-    var citizenEntity = citizenRepository.findById(request.id())
-        .orElseThrow(() -> {
-          log.warn("Citizen not found with ID: {}", request.id());
-          return new EntityNotFoundException("Citizen not found with id: " + request.id());
-        });
+      if (citizenOptional.isEmpty()) {
+        log.warn("Citizen not found with ID: {}", request.id());
+        throw new EntityNotFoundException("Citizen not found with id: " + request.id());
+      }
 
-    if (request.name() != null) {
-      citizenEntity.setName(request.name());
-    }
-    if (request.hasHumanPet() != null) {
-      citizenEntity.setHasHumanPet(request.hasHumanPet());
-    }
-    if (request.speciesId() != null) {
-      var speciesEntity = speciesService.getById(request.speciesId());
-      citizenEntity.setSpecies(speciesEntity);
-    }
-    if (request.roleNames() != null) {
-      rolePolicyValidator.validate(request.roleNames(), Optional.of(request.id()));
-      var roles = roleService.getRolesByRoleNames(request.roleNames());
-      citizenEntity.setRoles(roles);
-    }
+      var citizenEntity = citizenOptional.get();
 
-    var saved = citizenRepository.save(citizenEntity);
-    createOutboxCitizenEvent(citizenEntity.getId(), citizenEventMapper.toUpdatedEvent(saved), CitizenEventType.UPDATED);
-    log.info("Citizen with ID {} updated successfully", request.id());
+      if (request.name() != null) {
+        citizenEntity.setName(request.name());
+      }
+      if (request.hasHumanPet() != null) {
+        citizenEntity.setHasHumanPet(request.hasHumanPet());
+      }
+      if (request.speciesId() != null) {
+        var speciesEntity = speciesService.getById(request.speciesId());
+        citizenEntity.setSpecies(speciesEntity);
+      }
+      if (request.roleNames() != null) {
+        rolePolicyValidator.validate(request.roleNames(), Optional.of(request.id()));
+        var roleEntities = roleService.getRolesByRoleNames(request.roleNames());
+        citizenEntity.setRoleEntities(roleEntities);
+      }
+
+      var saved = citizenRepository.save(citizenEntity);
+      createOutboxCitizenEvent(citizenEntity.getId(), citizenEventMapper.toUpdatedEvent(saved), CitizenEventType.UPDATED);
+      log.debug("Citizen with ID {} updated successfully", request.id());
+    } catch (EntityNotFoundException e) {
+      throw e;
+    } catch (PessimisticLockException | DataIntegrityViolationException e) {
+      log.error("Conflict updating citizen: {}", e.getMessage(), e);
+      throw new EntityConflictException("Conflict occurred while updating citizen", e);
+    } catch (Exception e) {
+      log.error("Persistence error updating citizen: {}", e.getMessage(), e);
+      throw new EntityPersistenceException("Error while updating citizen", e);
+    }
   }
 
   @Transactional
   @Override
   public void deleteCitizen(UUID id) {
-    log.info("Deleting citizen with ID: {}", id);
-    citizenRepository.deleteById(id);
-    createOutboxCitizenEvent(id, citizenEventMapper.toDeletedEvent(id), CitizenEventType.DELETED);
-    log.info("Citizen with ID {} deleted", id);
+    try {
+      citizenRepository.deleteById(id);
+      createOutboxCitizenEvent(id, citizenEventMapper.toDeletedEvent(id), CitizenEventType.DELETED);
+      log.debug("Citizen with ID {} deleted", id);
+    } catch (Exception e) {
+      log.error("Persistence error deleting citizen: {}", e.getMessage(), e);
+      throw new EntityPersistenceException("Error while deleting citizen", e);
+    }
   }
 
   @Transactional
   @Override
   public Set<CitizenEntity> createCitizens(List<CreateCitizenRequest> requests) {
-    log.info("Creating bulk citizens: total {}", requests.size());
+    try {
+      var speciesIds = requests.stream()
+          .map(CreateCitizenRequest::speciesId)
+          .collect(Collectors.toSet());
+      var speciesEntities = speciesService.getByIds(speciesIds);
 
-    var speciesIds = requests.stream()
-        .map(CreateCitizenRequest::speciesId)
-        .collect(Collectors.toSet());
-    var speciesEntities = speciesService.getByIds(speciesIds);
+      rolePolicyValidator.validateBulk(
+          requests.stream().map(CreateCitizenRequest::roleNames).toList()
+      );
 
-    rolePolicyValidator.validateBulk(
-        requests.stream().map(CreateCitizenRequest::roleNames).toList()
-    );
+      var rolesEntities = roleService.getRolesByRoleNames(
+          requests.stream().flatMap(r -> r.roleNames().stream()).collect(Collectors.toSet())
+      );
 
-    var rolesEntities = roleService.getRolesByRoleNames(
-        requests.stream().flatMap(r -> r.roleNames().stream()).collect(Collectors.toSet())
-    );
+      var entities = requests.stream()
+          .map(request -> CitizenEntity.builder()
+              .id(UUID.randomUUID())
+              .name(request.name())
+              .hasHumanPet(request.hasHumanPet())
+              .species(speciesEntities.stream()
+                  .filter(species -> species.getId().equals(request.speciesId()))
+                  .findFirst()
+                  .orElseThrow(() -> {
+                    log.warn("Species not found for ID: {}", request.speciesId());
+                    return new EntityNotFoundException("Species not found with ID: " + request.speciesId());
+                  }))
+              .roleEntities(rolesEntities.stream()
+                  .filter(role -> request.roleNames().contains(role.getName()))
+                  .collect(Collectors.toSet()))
+              .build())
+          .toList();
 
-    var entities = requests.stream()
-        .map(request -> CitizenEntity.builder()
-            .id(UUID.randomUUID()) // -> necessary for bulk creation
-            .name(request.name())
-            .hasHumanPet(request.hasHumanPet())
-            .species(speciesEntities.stream()
-                .filter(species -> species.getId().equals(request.speciesId()))
-                .findFirst()
-                .orElseThrow(() -> {
-                  log.warn("Species not found for ID: {}", request.speciesId());
-                  return new EntityNotFoundException("Species not found with ID: " + request.speciesId());
-                }))
-            .roles(rolesEntities.stream()
-                .filter(role -> request.roleNames().contains(role.getName()))
-                .collect(Collectors.toSet()))
-            .build())
-        .toList();
+      var saved = citizenRepository.saveAll(entities);
+      createOutboxCitizenEventBulk(saved);
+      log.debug("Bulk creation completed. Total created: {}", saved.size());
 
-    var saved = citizenRepository.saveAll(entities);
-    createOutboxCitizenEventBulk(saved);
-    log.info("Bulk creation completed. Total created: {}", saved.size());
-
-    return new HashSet<>(saved);
+      return new HashSet<>(saved);
+    } catch (EntityNotFoundException e) {
+      throw e;
+    } catch (Exception e) {
+      log.error("Persistence error during bulk creation: {}", e.getMessage(), e);
+      throw new EntityPersistenceException("Error while creating citizens", e);
+    }
   }
 
   @Override
   public Set<CitizenEntity> getCitizensByRoleName(RoleName roleName) {
-    log.info("Retrieving citizens by role names: {}", roleName);
-
     var citizens = citizenRepository.findByRoleName(roleName);
     return new HashSet<>(citizens);
   }
 
   public CitizenEntity getById(UUID id) {
-    log.info("Retrieving citizen by ID: {}", id);
-
     return citizenRepository.findById(id)
         .orElseThrow(() -> {
           log.warn("Citizen not found with ID: {}", id);
@@ -172,7 +197,7 @@ public class CitizenServiceImpl implements CitizenService {
 
   private void createOutboxCitizenEvent(UUID citizenId, CitizenEventEnvelope event, CitizenEventType eventType) {
     var serializedEvent = avroSerializer.serialize(event);
-    OutboxCitizenEventEntity outboxEvent = OutboxCitizenEventEntity.builder()
+    CitizenEventEntity outboxEvent = CitizenEventEntity.builder()
         .aggregateId(citizenId)
         .aggregateType("Citizen")
         .type(eventType.name())
@@ -182,15 +207,15 @@ public class CitizenServiceImpl implements CitizenService {
         .createdAt(Instant.now())
         .build();
     outboxCitizenEventRepository.save(outboxEvent);
-    log.info("Outbox event created for citizen with ID: {}", citizenId);
+    log.debug("Outbox event created for citizen with ID: {}", citizenId);
   }
 
   private void createOutboxCitizenEventBulk(List<CitizenEntity> citizenEntities) {
     var outboxEvents = citizenEntities.stream()
         .map(citizen -> {
           var event = citizenEventMapper.toCreatedEvent(citizen);
-          return OutboxCitizenEventEntity.builder()
-              .id(UUID.randomUUID()) // -> necessary for bulk creation
+          return CitizenEventEntity.builder()
+              .id(UUID.randomUUID())
               .aggregateId(citizen.getId())
               .aggregateType("Citizen")
               .type(CitizenEventType.CREATED.name())
@@ -200,10 +225,9 @@ public class CitizenServiceImpl implements CitizenService {
               .topic(kafkaTopics.getCitizenEvent())
               .build();
         })
-        .collect(Collectors.toList());
+        .toList();
 
     outboxCitizenEventRepository.saveAll(outboxEvents);
-    log.info("Bulk outbox events created: total {}", outboxEvents.size());
+    log.debug("Bulk outbox events created: total {}", outboxEvents.size());
   }
 }
-

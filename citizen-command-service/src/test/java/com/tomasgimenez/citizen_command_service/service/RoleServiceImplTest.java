@@ -86,7 +86,7 @@ class RoleServiceImplTest {
   @Test
   void getRoleByName_shouldReturnRoleWhenExists() {
     RoleName roleName = RoleName.GENERAL;
-    RoleEntity roleEntity = RoleEntity.builder().name(roleName).build();
+    RoleEntity roleEntity = new RoleEntity(UUID.randomUUID(), roleName);
     when(roleRepository.findByName(roleName)).thenReturn(Optional.of(roleEntity));
 
     RoleEntity result = roleService.getRoleByName(roleName);

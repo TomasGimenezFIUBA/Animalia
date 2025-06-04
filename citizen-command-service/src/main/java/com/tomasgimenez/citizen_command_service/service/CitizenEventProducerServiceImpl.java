@@ -18,19 +18,17 @@ public class CitizenEventProducerServiceImpl implements CitizenEventProducerServ
 
   @Override
   public CompletableFuture<SendResult<String, byte[]>> sendCitizenEvent(String key, byte[] payload, String topic, Consumer<SendResult<String, byte[]>> onSuccess) {
-    var completableFuture =  kafkaTemplate.send(topic, key, payload)
+
+    return kafkaTemplate.send(topic, key, payload)
             .whenComplete((result, exception) -> {
                 if (exception != null) {
                     log.error("Failed to send CitizenEvent to topic {}: {}", topic, exception.getMessage());
                 } else {
-                    log.info("CitizenEvent sent successfully to topic {}: {}", topic, key);
+                    log.debug("CitizenEvent sent successfully to topic {}: {}", topic, key);
                     if (onSuccess != null) {
                         onSuccess.accept(result);
                     }
                 }
             });
-    log.info("CitizenEvent sent to topic {}: {}", topic, key);
-
-    return completableFuture;
   }
 }

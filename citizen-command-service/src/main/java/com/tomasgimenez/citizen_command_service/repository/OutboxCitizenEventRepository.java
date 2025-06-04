@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.tomasgimenez.citizen_command_service.model.entity.OutboxCitizenEventEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
 
-public interface OutboxCitizenEventRepository extends JpaRepository<OutboxCitizenEventEntity, UUID> {
+public interface OutboxCitizenEventRepository extends JpaRepository<CitizenEventEntity, UUID> {
   @Query(
       value = """
     SELECT *
@@ -26,6 +26,6 @@ public interface OutboxCitizenEventRepository extends JpaRepository<OutboxCitize
     """,
       nativeQuery = true
   )
-  List<OutboxCitizenEventEntity> findOldestUnprocessedPerAggregateId(@Param("limit") int limit);
+  List<CitizenEventEntity> findOldestUnprocessedPerAggregateId(@Param("limit") int limit);
 
 }

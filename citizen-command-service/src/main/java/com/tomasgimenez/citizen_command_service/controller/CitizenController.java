@@ -51,7 +51,7 @@ public class CitizenController {
       @ApiResponse(responseCode = "204", description = "Citizen updated"),
       @ApiResponse(responseCode = "404", description = "Citizen not found", content = @Content)
   })
-  @PutMapping
+  @PatchMapping
   public ResponseEntity<CitizenDTO> updateCitizen(
       @Valid @RequestBody
       UpdateCitizenRequest request) {

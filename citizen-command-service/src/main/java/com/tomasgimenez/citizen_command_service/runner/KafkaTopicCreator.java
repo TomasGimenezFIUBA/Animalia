@@ -45,7 +45,7 @@ public class KafkaTopicCreator implements CommandLineRunner {
       }
 
     } catch (Exception e) {
-      log.info("Error while creating topics: " + e.getMessage());
+      log.error("Error while creating topics: " + e.getMessage());
     }
   }
 }
