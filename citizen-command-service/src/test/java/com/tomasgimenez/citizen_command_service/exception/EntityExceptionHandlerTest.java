@@ -21,12 +21,12 @@ class EntityExceptionHandlerTest {
   }
 
   @Test
-  void handleEntityNotFoundException_returns404WithMessage() {
+  void handleEntityNotFoundException_returns400WithMessage() {
     EntityNotFoundException ex = new EntityNotFoundException("Entity not found with id 123");
 
     ResponseEntity<Map<String, String>> response = handler.handleEntityNotFoundException(ex);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).containsEntry("error", "Entity not found with id 123");
   }
 
@@ -36,8 +36,8 @@ class EntityExceptionHandlerTest {
 
     ResponseEntity<Map<String, String>> response = handler.handleEntityNotFoundException(ex);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    assertThat(response.getBody()).containsEntry("error", "Entity not found");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).containsEntry("error", "Invalid entity");
   }
 
   @Test

@@ -17,8 +17,8 @@ public class EntityExceptionHandler {
   @ExceptionHandler(EntityNotFoundException.class)
   public ResponseEntity<Map<String, String>> handleEntityNotFoundException(EntityNotFoundException ex) {
     Map<String, String> error = new HashMap<>();
-    error.put("error", ex.getMessage() != null ? ex.getMessage() : "Entity not found");
-    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    error.put("error", ex.getMessage() != null ? ex.getMessage() : "Invalid entity");
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
   @ExceptionHandler(RolePolicyException.class)
