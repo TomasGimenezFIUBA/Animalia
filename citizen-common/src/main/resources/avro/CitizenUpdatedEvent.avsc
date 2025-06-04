@@ -1,0 +1,27 @@
+{
+  "type": "record",
+  "name": "CitizenUpdatedEvent",
+  "namespace": "com.tomasgimenez.animalia.avro",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "timestamp", "type": "string" },
+    { "name": "source", "type": "string" },
+
+    { "name": "id", "type": "string" },
+
+    { "name": "name", "type": ["null", "string"], "default": null },
+    { "name": "hasHumanPet", "type": ["null", "boolean"], "default": null },
+
+    {
+      "name": "species",
+      "type": ["null", "Species"],
+      "default": null
+    },
+
+    {
+      "name": "roleNames",
+      "type": ["null", { "type": "array", "items": "string" }],
+      "default": null
+    }
+  ]
+}

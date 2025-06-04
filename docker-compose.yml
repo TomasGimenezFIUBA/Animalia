@@ -1,0 +1,73 @@
+services:
+  citizen-command-service-db:
+    image: postgres:16
+    container_name: citizen-command-service-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: animalia
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - animalia-postgres-data:/var/lib/postgresql/data
+    networks:
+      - animalia-net
+
+  kafka-animalia:
+    image: bitnami/kafka:latest
+    container_name: kafka-animalia
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      - KAFKA_ENABLE_KRAFT=true
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-animalia:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,EXTERNAL://:29092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-animalia:9092,EXTERNAL://localhost:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LOG_DIRS=/bitnami/kafka/data
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka-animalia-data:/bitnami/kafka
+    networks:
+      - animalia-net
+
+  redis-quarantine:
+    image: redis:7
+    container_name: redis-quarantine
+    ports:
+      - "6379:6379"
+    networks:
+      - animalia-net
+    volumes:
+      - redis-quarantine-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+
+  citizen-query-service-db:
+    image: mongo:7.0
+    container_name: citizen-query-service-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: citizensdb
+    volumes:
+      - animalia-citizen-mongo_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - animalia-net
+
+volumes:
+  animalia-postgres-data:
+  kafka-animalia-data:
+  redis-quarantine-data:
+  animalia-citizen-mongo_data:
+
+networks:
+  animalia-net:
+    driver: bridge

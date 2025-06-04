@@ -1,0 +1,27 @@
+{
+  "type": "record",
+  "name": "CitizenEventEnvelope",
+  "namespace": "com.tomasgimenez.animalia.avro",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "CitizenEventType",
+        "symbols": ["CREATED", "UPDATED", "DELETED"]
+      }
+    },
+    {
+      "name": "payload",
+      "type": [
+        "com.tomasgimenez.animalia.avro.CitizenCreatedEvent",
+        "com.tomasgimenez.animalia.avro.CitizenUpdatedEvent",
+        "com.tomasgimenez.animalia.avro.CitizenDeletedEvent"
+      ]
+    }
+  ]
+}
