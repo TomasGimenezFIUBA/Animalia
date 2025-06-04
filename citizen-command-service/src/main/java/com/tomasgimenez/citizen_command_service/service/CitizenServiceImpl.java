@@ -32,7 +32,6 @@ import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PessimisticLockException;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -46,8 +45,7 @@ public class CitizenServiceImpl implements CitizenService {
   private final OutboxCitizenEventRepository outboxCitizenEventRepository;
   private final AvroSerializer avroSerializer;
   private final KafkaTopics kafkaTopics;
-  @Setter
-  private RolePolicyValidator rolePolicyValidator;
+  private final RolePolicyValidator rolePolicyValidator;
 
   @Transactional
   @Override

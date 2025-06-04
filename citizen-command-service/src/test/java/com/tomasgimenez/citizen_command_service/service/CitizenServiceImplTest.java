@@ -62,9 +62,8 @@ class CitizenServiceImplTest {
 
     citizenService = new CitizenServiceImpl(
         citizenRepository, speciesService, roleService, citizenEventMapper,
-        outboxCitizenEventRepository, avroSerializer, kafkaTopics
+        outboxCitizenEventRepository, avroSerializer, kafkaTopics, rolePolicyValidator
     );
-    citizenService.setRolePolicyValidator(rolePolicyValidator);
 
     species = new SpeciesEntity(UUID.randomUUID(), "Lion", 190.0, 1.2);
     role = new RoleEntity(UUID.randomUUID(), RoleName.CIVIL);

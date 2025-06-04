@@ -63,7 +63,7 @@ services:
       - animalia-net
 
   animalia-discovery-server:
-    image: animalia/discovery-server:latest
+    image: tomasgimenez/discovery-server:latest
     container_name: animalia-discovery-server
     ports:
       - "8761:8761"
@@ -73,7 +73,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
 
   animalia-api-gateway:
-    image: animalia/api-gateway:latest
+    image: tomasgimenez/api-gateway:latest
     container_name: animalia-api-gateway
     depends_on:
       - animalia-discovery-server
@@ -85,8 +85,10 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
 
   citizen-query-service:
-    image: animalia/citizen-query-service:latest
+    image: tomasgimenez/citizen-query-service:latest
     container_name: citizen-query-service
+#    ports:
+#      - "8080"
     depends_on:
       - kafka-animalia
       - citizen-query-service-db
@@ -99,8 +101,10 @@ services:
       - animalia-net
 
   citizen-command-service:
-    image: animalia/citizen-command-service:latest
+    image: tomasgimenez/citizen-command-service:latest
     container_name: citizen-command-service
+#    ports:
+#      - "8080"
     depends_on:
       - kafka-animalia
       - citizen-command-service-db
