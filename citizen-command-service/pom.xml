@@ -71,11 +71,30 @@
 			<artifactId>spring-kafka</artifactId>
 			<version>3.3.6</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+			<version>4.3.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>com.tomasgimenez</groupId>
 			<artifactId>citizen-common</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
@@ -102,6 +121,31 @@
 						<exclude>com/tomasgimenez/citizen_command_service/exception/*Exception.class</exclude>
 						<exclude>com/tomasgimenez/citizen_command_service/model/**</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.google.cloud.tools</groupId>
+				<artifactId>jib-maven-plugin</artifactId>
+				<version>3.4.5</version>
+				<executions>
+					<execution>
+						<phase>install</phase>
+						<goals>
+							<goal>dockerBuild</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<from>
+						<image>eclipse-temurin:21-jre</image>
+						<auth>
+							<username>${env.DOCKER_HUB_TG_USERNAME}</username>
+							<password>${env.DOCKER_HUB_TG_PASSWORD}</password>
+						</auth>
+					</from>
+					<to>
+						<image>animalia/${project.artifactId}:latest</image>
+					</to>
 				</configuration>
 			</plugin>
 		</plugins>

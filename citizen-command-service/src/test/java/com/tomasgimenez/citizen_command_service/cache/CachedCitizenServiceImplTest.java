@@ -49,7 +49,7 @@ class CachedCitizenServiceImplTest {
         .id(id != null ? id : UUID.randomUUID())
         .name(name)
         .hasHumanPet(hasHumanPet)
-        .roles(roles)
+        .roleEntities(roles)
         .build();
   }
 

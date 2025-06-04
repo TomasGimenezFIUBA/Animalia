@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Data
-public class OutboxCitizenEventEntity {
+public class CitizenEventEntity {
   @Id
   @JdbcTypeCode(SqlTypes.UUID)
   private UUID id;

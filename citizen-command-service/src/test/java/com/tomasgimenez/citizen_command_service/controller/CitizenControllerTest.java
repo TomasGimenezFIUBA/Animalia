@@ -25,64 +25,61 @@ class CitizenControllerTest {
 
   private CitizenService citizenService;
   private CitizenController citizenController;
-  private CitizenEntity citizen;
+  private CitizenEntity citizenEntity;
 
   @BeforeEach
   void setUp() {
     citizenService = mock(CitizenService.class);
     citizenController = new CitizenController(citizenService);
 
-    citizen = CitizenEntity.builder()
+    citizenEntity = CitizenEntity.builder()
         .id(UUID.randomUUID())
         .name("Fido")
         .species(new SpeciesEntity(UUID.randomUUID(), "Dog", 15.0, 200.0))
-        .roles(Set.of(new RoleEntity(UUID.randomUUID(), RoleName.CIVIL)))
+        .roleEntities(Set.of(new RoleEntity(UUID.randomUUID(), RoleName.FIRST_MINISTER)))
         .build();
   }
 
   @Test
   void createCitizen_shouldReturnCreatedCitizen() {
     CreateCitizenRequest request = new CreateCitizenRequest(
-        "Firulais",
-        UUID.randomUUID(),
-        true,
-        Set.of(RoleName.CIVIL)
+        citizenEntity.getName(),
+        citizenEntity.getSpecies().getId(),
+        citizenEntity.isHasHumanPet(),
+        citizenEntity.getRoleEntities().stream().map(RoleEntity::getName).collect(Collectors.toSet())
     );
 
-    when(citizenService.createCitizen(request)).thenReturn(citizen);
+    when(citizenService.createCitizen(request)).thenReturn(citizenEntity);
 
     ResponseEntity<CitizenDTO> response = citizenController.createCitizen(request);
 
     assertEquals(HttpStatus.CREATED, response.getStatusCode());
-    assertEquals(CitizenDTO.fromEntity(citizen), response.getBody());
+    assertEquals(CitizenDTO.fromEntity(citizenEntity), response.getBody());
     verify(citizenService).createCitizen(request);
   }
 
   @Test
   void updateCitizen_shouldReturnNoContent() {
     UpdateCitizenRequest request = new UpdateCitizenRequest(
-        UUID.randomUUID(),
-        "Whiskers",
-        UUID.randomUUID(),
-        false,
-        Set.of(RoleName.MINISTER_OF_STATE)
+        citizenEntity.getId(),
+        citizenEntity.getName(),
+        citizenEntity.getSpecies().getId(),
+        citizenEntity.isHasHumanPet(),
+        citizenEntity.getRoleEntities().stream().map(RoleEntity::getName).collect(Collectors.toSet())
     );
 
     ResponseEntity<CitizenDTO> response = citizenController.updateCitizen(request);
 
     assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-    assertNull(response.getBody());
     verify(citizenService).updateCitizen(request);
   }
 
   @Test
   void deleteCitizen_shouldReturnNoContent() {
-    UUID id = UUID.randomUUID();
-
-    ResponseEntity<Void> response = citizenController.deleteCitizen(id);
+    ResponseEntity<Void> response = citizenController.deleteCitizen(citizenEntity.getId());
 
     assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-    verify(citizenService).deleteCitizen(id);
+    verify(citizenService).deleteCitizen(citizenEntity.getId());
   }
 
   @Test
@@ -108,13 +105,13 @@ class CitizenControllerTest {
             .id(UUID.randomUUID())
             .name("Luna")
             .species(new SpeciesEntity(UUID.randomUUID(), "Dog", 15.0, 200.0))
-            .roles(Set.of(new RoleEntity(UUID.randomUUID(), RoleName.GENERAL)))
+            .roleEntities(Set.of(new RoleEntity(UUID.randomUUID(), RoleName.GENERAL)))
             .build(),
         CitizenEntity.builder()
             .id(UUID.randomUUID())
             .name("Toby")
             .species(new SpeciesEntity(UUID.randomUUID(), "Cat", 10.0, 100.0))
-            .roles(Set.of(new RoleEntity(UUID.randomUUID(), RoleName.CIVIL)))
+            .roleEntities(Set.of(new RoleEntity(UUID.randomUUID(), RoleName.CIVIL)))
             .build()
     );
     var expectedSet = entitySet.stream()

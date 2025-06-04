@@ -57,7 +57,7 @@ public class CachedCitizenServiceImpl implements CitizenService {
 
     if (request.roleNames() == null) return;
 
-    Set<RoleName> previousRoles = getCachedRoles(previous.getRoles()
+    Set<RoleName> previousRoles = getCachedRoles(previous.getRoleEntities()
         .stream().map(RoleEntity::getName)
         .collect(Collectors.toSet()));
     Set<RoleName> newRoles = getCachedRoles(request.roleNames());
@@ -81,7 +81,7 @@ public class CachedCitizenServiceImpl implements CitizenService {
 
     delegate.deleteCitizen(id);
 
-    getCachedRoles(citizen.getRoles()
+    getCachedRoles(citizen.getRoleEntities()
         .stream().map(RoleEntity::getName)
         .collect(Collectors.toSet())
     ).forEach(role ->
@@ -95,7 +95,7 @@ public class CachedCitizenServiceImpl implements CitizenService {
 
     Map<RoleName, Set<CitizenEntity>> citizensByRole = new EnumMap<>(RoleName.class);
     for (CitizenEntity citizen : created) {
-      for (RoleName role : getCachedRoles(citizen.getRoles().stream()
+      for (RoleName role : getCachedRoles(citizen.getRoleEntities().stream()
           .map(RoleEntity::getName)
           .collect(Collectors.toSet()))) {
         citizensByRole.computeIfAbsent(role, r -> new HashSet<>()).add(citizen);
@@ -115,7 +115,7 @@ public class CachedCitizenServiceImpl implements CitizenService {
     if (cache != null) {
       Set<CitizenEntity> cachedCitizens = cache.get(roleName, Set.class);
       if (cachedCitizens != null) {
-        log.info("Returning cached citizens for role '{}'", roleName);
+        log.debug("Returning cached citizens for role '{}'", roleName);
         return cachedCitizens;
       }
     }

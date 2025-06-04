@@ -37,7 +37,7 @@ class UniqueRolePolicyTest {
 
     return CitizenEntity.builder()
         .id(UUID.randomUUID())
-        .roles(roleEntities)
+        .roleEntities(roleEntities)
         .species(new SpeciesEntity())
         .build();
   }

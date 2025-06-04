@@ -1,6 +1,6 @@
 package com.tomasgimenez.citizen_command_service.jobs;
 
-import com.tomasgimenez.citizen_command_service.model.entity.OutboxCitizenEventEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
 import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
 import com.tomasgimenez.citizen_command_service.service.CitizenEventProducerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,17 +13,17 @@ import java.util.function.Consumer;
 
 import static org.mockito.Mockito.*;
 
-class OutboxCitizenEventPublisherJobTest {
+class CitizenEventPublisherJobTest {
 
   private OutboxCitizenEventRepository repository;
   private CitizenEventProducerService producerService;
-  private OutboxCitizenEventPublisherJob job;
+  private CitizenEventPublisherJob job;
 
   @BeforeEach
   void setUp() {
     repository = mock(OutboxCitizenEventRepository.class);
     producerService = mock(CitizenEventProducerService.class);
-    job = new OutboxCitizenEventPublisherJob(repository, producerService);
+    job = new CitizenEventPublisherJob(repository, producerService);
   }
 
   @Test
@@ -31,7 +31,7 @@ class OutboxCitizenEventPublisherJobTest {
     UUID aggregateId = UUID.randomUUID();
     UUID id = UUID.randomUUID();
     byte[] payload = "data".getBytes();
-    OutboxCitizenEventEntity event = OutboxCitizenEventEntity.builder()
+    CitizenEventEntity event = CitizenEventEntity.builder()
         .id(id)
         .aggregateId(aggregateId)
         .aggregateType("Citizen")

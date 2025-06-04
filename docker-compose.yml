@@ -62,6 +62,89 @@ services:
     networks:
       - animalia-net
 
+  animalia-discovery-server:
+    image: tomasgimenez/discovery-server:latest
+    container_name: animalia-discovery-server
+    ports:
+      - "8761:8761"
+    networks:
+      - animalia-net
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  animalia-api-gateway:
+    image: tomasgimenez/api-gateway:latest
+    container_name: animalia-api-gateway
+    depends_on:
+      - animalia-discovery-server
+    ports:
+      - "8081:8080"
+    networks:
+      - animalia-net
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  citizen-query-service:
+    image: tomasgimenez/citizen-query-service:latest
+    container_name: citizen-query-service
+#    ports:
+#      - "8080"
+    depends_on:
+      - kafka-animalia
+      - citizen-query-service-db
+      - redis-quarantine
+      - animalia-discovery-server
+      - animalia-api-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - animalia-net
+
+  citizen-command-service:
+    image: tomasgimenez/citizen-command-service:latest
+    container_name: citizen-command-service
+#    ports:
+#      - "8080"
+    depends_on:
+      - kafka-animalia
+      - citizen-command-service-db
+      - animalia-discovery-server
+      - animalia-api-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - animalia-net
+
+  prometheus:
+    image: prom/prometheus:v2.37.1
+    container_name: animalia-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - citizen-command-service
+      - citizen-query-service
+    networks:
+      - animalia-net
+
+  grafana:
+    image: grafana/grafana-oss:8.5.2
+    container_name: animalia-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    links:
+      - prometheus:prometheus
+    volumes:
+      - ./grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=password
+    networks:
+      - animalia-net
+
 volumes:
   animalia-postgres-data:
   kafka-animalia-data:
