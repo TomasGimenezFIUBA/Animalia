@@ -1,0 +1,40 @@
+# kubernetes-manifests/postgres-deployment-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: citizen-command-service-db
+  labels:
+    app: citizen-command-service-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: citizen-command-service-db
+  template:
+    metadata:
+      labels:
+        app: citizen-command-service-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secrets-demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: citizen-command-service-db
+  labels:
+    app: citizen-command-service-db
+spec:
+  selector:
+    app: citizen-command-service-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP

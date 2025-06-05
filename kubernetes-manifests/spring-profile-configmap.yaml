@@ -1,0 +1,7 @@
+# kubernetes-manifests/spring-profile-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spring-profile-docker
+data:
+  SPRING_PROFILES_ACTIVE: docker

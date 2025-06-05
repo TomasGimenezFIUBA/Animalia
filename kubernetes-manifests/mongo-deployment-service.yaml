@@ -1,0 +1,48 @@
+# kubernetes-manifests/mongo-deployment-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: citizen-query-service-db
+  labels:
+    app: citizen-query-service-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: citizen-query-service-db
+  template:
+    metadata:
+      labels:
+        app: citizen-query-service-db
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7.0
+          ports:
+            - containerPort: 27017
+          envFrom:
+            - secretRef:
+                name: mongo-secrets-demo
+          volumeMounts:
+            - name: mongo-init-volume
+              mountPath: /docker-entrypoint-initdb.d/mongo-init.js
+              subPath: mongo-init.js
+      volumes:
+        - name: mongo-init-volume
+          configMap:
+            name: mongo-init-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: citizen-query-service-db
+  labels:
+    app: citizen-query-service-db
+spec:
+  selector:
+    app: citizen-query-service-db
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+  type: ClusterIP

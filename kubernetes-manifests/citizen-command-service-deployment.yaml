@@ -1,0 +1,52 @@
+# kubernetes-manifests/citizen-command-service-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: citizen-command-service
+  labels:
+    app: citizen-command-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: citizen-command-service
+  template:
+    metadata:
+      labels:
+        app: citizen-command-service
+    spec:
+      containers:
+        - name: citizen-command-service
+          image: tomasgimenez/citizen-command-service:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: spring-profile-docker
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: citizen-command-service
+  labels:
+    app: citizen-command-service
+spec:
+  selector:
+    app: citizen-command-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: LoadBalancer

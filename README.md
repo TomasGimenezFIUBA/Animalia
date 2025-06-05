@@ -101,3 +101,24 @@ This starts all infrastructure components and microservices.
 | API Gateway       | Spring Cloud Gateway |
 | Metrics           | Prometheus           |
 | Dashboards        | Grafana              |
+
+## 🚀 How to Test the Application in Production
+
+This application is deployed as a demo on **Google Cloud Platform (GCP)** using **Google Kubernetes Engine (GKE)**.
+
+> ⚠️ Please note: Since this is a demo deployment, the following components are **not hosted**:
+>
+> * **API Gateway**
+> * **Discovery Server (Eureka)**
+> * **Prometheus**
+> * **Grafana**
+
+### 🌐 Accessing the Microservices
+
+You can directly access the Swagger UIs of the main services via their public IP addresses:
+
+* [`citizen-command-service`](http://35.198.57.121:8080/swagger-ui/index.html)
+  Handles commands and write operations.
+
+* [`citizen-query-service`](http://35.247.222.254:8080/swagger-ui/index.html)
+  Exposes read and query endpoints.

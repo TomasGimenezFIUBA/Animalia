@@ -87,8 +87,8 @@ services:
   citizen-query-service:
     image: tomasgimenez/citizen-query-service:latest
     container_name: citizen-query-service
-#    ports:
-#      - "8080"
+    ports:
+      - "8083:8080"
     depends_on:
       - kafka-animalia
       - citizen-query-service-db
@@ -103,8 +103,8 @@ services:
   citizen-command-service:
     image: tomasgimenez/citizen-command-service:latest
     container_name: citizen-command-service
-#    ports:
-#      - "8080"
+    ports:
+      - "8080:8080"
     depends_on:
       - kafka-animalia
       - citizen-command-service-db
