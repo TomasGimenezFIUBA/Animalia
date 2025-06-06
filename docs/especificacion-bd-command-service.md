@@ -6,7 +6,7 @@ Este documento describe el esquema, índices y datos iniciales de una base de da
 
 ## 📊 Esquema Relacional
 
-![Esquema de la base de datos](./esquema_postgresql.jpeg)
+![Esquema de la base de datos](./esquema_postgresql.png)
 
 ---
 

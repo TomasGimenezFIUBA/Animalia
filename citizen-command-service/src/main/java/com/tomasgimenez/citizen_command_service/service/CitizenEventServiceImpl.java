@@ -86,7 +86,7 @@ public class CitizenEventServiceImpl implements CitizenEventService {
     try {
       var serializedEvent = avroSerializer.serialize(event);
 
-      CitizenEventEntity outboxEvent = CitizenEventEntity.builder()
+      CitizenEventEntity citizenEvent = CitizenEventEntity.builder()
           .aggregateId(aggregateId)
           .type(eventType.name())
           .payload(serializedEvent)
@@ -95,7 +95,7 @@ public class CitizenEventServiceImpl implements CitizenEventService {
           .createdAt(Instant.now())
           .build();
 
-      citizenEventRepository.save(outboxEvent);
+      citizenEventRepository.save(citizenEvent);
       log.debug("{} event persisted for citizen ID {}", eventType, aggregateId);
     } catch (SerializationException serializationException) {
       log.error("Serialization error for {} event of citizen ID {}: {}", eventType, aggregateId, serializationException.getMessage(), serializationException);

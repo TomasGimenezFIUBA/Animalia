@@ -40,7 +40,7 @@ public class CitizenRepositoryCustomImpl implements CitizenRepositoryCustom{
 
     citizenPatch.name().ifPresent(name -> update.set("name", name));
     citizenPatch.hasHumanPet().ifPresent(hp -> update.set("hasHumanPet", hp));
-    citizenPatch.species().ifPresent(species -> update.set("species", species.toString()));
+    citizenPatch.species().ifPresent(species -> update.set("species", species));
     citizenPatch.roleNames().ifPresent(roleNames -> update.set("roleNames", roleNames));
 
     if (!update.getUpdateObject().isEmpty()) {

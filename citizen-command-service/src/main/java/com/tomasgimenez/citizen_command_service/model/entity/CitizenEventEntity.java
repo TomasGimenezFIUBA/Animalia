@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "outbox_citizen_events")
+@Table(name = "citizen_events")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder

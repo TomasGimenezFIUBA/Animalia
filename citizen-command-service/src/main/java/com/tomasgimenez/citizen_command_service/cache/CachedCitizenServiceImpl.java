@@ -52,13 +52,14 @@ public class CachedCitizenServiceImpl implements CitizenService {
   @Override
   public void updateCitizen(UpdateCitizenRequest request) {
     CitizenEntity previous = delegate.getById(request.id());
+    Set<RoleName> previousRoles = getCachedRoles(previous.getRoleEntities()
+        .stream().map(RoleEntity::getName)
+        .collect(Collectors.toSet()));
+
     delegate.updateCitizen(request);
 
     if (request.roleNames() == null) return;
 
-    Set<RoleName> previousRoles = getCachedRoles(previous.getRoleEntities()
-        .stream().map(RoleEntity::getName)
-        .collect(Collectors.toSet()));
     Set<RoleName> newRoles = getCachedRoles(request.roleNames());
 
     previousRoles.forEach(role ->

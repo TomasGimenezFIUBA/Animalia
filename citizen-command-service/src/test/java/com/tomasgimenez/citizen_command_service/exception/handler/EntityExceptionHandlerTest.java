@@ -44,12 +44,12 @@ class EntityExceptionHandlerTest {
   }
 
   @Test
-  void handleRolePolicyException_returns403WithMessage() {
+  void handleRolePolicyException_returns409WithMessage() {
     RolePolicyException ex = new RolePolicyException("Role policy violation");
 
     ResponseEntity<Map<String, String>> response = handler.handleRolePolicyException(ex);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getBody()).containsEntry("error", "Role policy violation");
   }
 

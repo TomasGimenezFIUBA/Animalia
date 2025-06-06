@@ -16,12 +16,12 @@ public class DatabaseExceptionHandler {
 
   @ExceptionHandler(DatabaseWriteException.class)
   public ResponseEntity<Map<String, String>> handleEntityPersistenceException(DatabaseWriteException ex) {
-    return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage() != null ? ex.getMessage() : "Error persisting entity");
+    return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage() != null ? ex.getMessage() : "Error writing to database");
   }
 
   @ExceptionHandler(DatabaseReadException.class)
   public ResponseEntity<Map<String, String>> handleDatabaseAccessException(DatabaseReadException ex) {
-    return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage() != null ? ex.getMessage() : "Error persisting entity");
+    return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage() != null ? ex.getMessage() : "Error reading from database");
   }
 
   private ResponseEntity<Map<String, String>> createErrorResponse(HttpStatus status, String message) {

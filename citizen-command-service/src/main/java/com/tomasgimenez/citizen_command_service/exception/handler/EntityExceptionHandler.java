@@ -12,10 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityConflictException;
-import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 import com.tomasgimenez.citizen_command_service.exception.InvalidEntityReferenceException;
 import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
-import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 @ControllerAdvice
 public class EntityExceptionHandler {
@@ -32,7 +30,7 @@ public class EntityExceptionHandler {
 
   @ExceptionHandler(RolePolicyException.class)
   public ResponseEntity<Map<String, String>> handleRolePolicyException(RolePolicyException ex) {
-    return createErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage() != null ? ex.getMessage() : "Role policy violation");
+    return createErrorResponse(HttpStatus.CONFLICT, ex.getMessage() != null ? ex.getMessage() : "Role policy violation");
   }
 
   @ExceptionHandler(EntityConflictException.class)

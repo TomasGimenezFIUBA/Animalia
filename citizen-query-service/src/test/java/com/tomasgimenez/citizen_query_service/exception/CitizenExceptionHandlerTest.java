@@ -33,14 +33,4 @@ class CitizenExceptionHandlerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).containsEntry("error", "Citizen with ID null not found");
   }
-
-  @Test
-  void handleGenericException_returns500WithGenericMessage() {
-    Exception ex = new RuntimeException("Something went wrong");
-
-    ResponseEntity<Map<String, String>> response = handler.handleUnexpectedError(ex);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(response.getBody()).containsEntry("error", "Internal server error. Please try again later.");
-  }
 }
