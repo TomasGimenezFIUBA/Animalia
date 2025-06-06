@@ -9,6 +9,7 @@ import com.tomasgimenez.animalia.avro.CitizenCreatedEvent;
 import com.tomasgimenez.animalia.avro.CitizenDeletedEvent;
 import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
 import com.tomasgimenez.citizen_query_service.exception.CorruptedCitizenDocumentException;
+import com.tomasgimenez.citizen_query_service.exception.DuplicatedCitizenException;
 import com.tomasgimenez.citizen_query_service.model.CitizenDocument;
 import com.tomasgimenez.citizen_query_service.model.CitizenPatch;
 import com.tomasgimenez.citizen_query_service.model.Species;
@@ -37,7 +38,12 @@ public class CitizenEventHandler {
         .roleNames(toStringList(event.getRoleNames()))
         .build();
 
-    citizenService.insert(citizen);
+    try {
+      citizenService.insert(citizen);
+    } catch (DuplicatedCitizenException e) {
+      log.warn("Citizen with id {} already exists, skipping creation", event.getId());
+    }
+
     log.debug("Citizen with id {} created successfully", event.getId());
   }
 
@@ -76,9 +82,10 @@ public class CitizenEventHandler {
     }
   }
 
-  private Species toDomainSpecies(com.tomasgimenez.animalia.avro.Species avro) {
-    var name = avro.getName().toString();
-    return new Species(name, name, avro.getWeight(), avro.getHeight());
+  private Species toDomainSpecies(com.tomasgimenez.animalia.avro.Species avroSpecies) {
+    var name = avroSpecies.getName().toString();
+    var id = avroSpecies.getId().toString();
+    return new Species(id, name, avroSpecies.getWeight(), avroSpecies.getHeight());
   }
 
   private List<String> toStringList(List<CharSequence> charSeqList) {

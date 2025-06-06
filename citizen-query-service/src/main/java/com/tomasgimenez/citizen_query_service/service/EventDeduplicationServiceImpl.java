@@ -5,6 +5,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
+
 import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
@@ -15,13 +18,21 @@ public class EventDeduplicationServiceImpl implements EventDeduplicationService 
 
   @Override
   public boolean isEventProcessed(String eventId) {
-    Boolean exists = redisTemplate.hasKey(eventId);
-    return Boolean.TRUE.equals(exists);
+    try {
+      Boolean exists = redisTemplate.hasKey(eventId);
+      return Boolean.TRUE.equals(exists);
+    } catch (Exception e) {
+      throw new DatabaseReadException("Failed to check if event is processed: " + eventId, e);
+    }
   }
 
   @Override
   public void markEventAsProcessed(String eventId) {
-    redisTemplate.opsForValue().set(eventId, "1", TTL);
+    try {
+      redisTemplate.opsForValue().set(eventId, "1", TTL);
+    } catch (Exception e) {
+      throw new DatabaseWriteException("Failed to mark event as processed: " + eventId, e);
+    }
   }
 }
 

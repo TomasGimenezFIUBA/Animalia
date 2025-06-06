@@ -28,10 +28,9 @@ CREATE TABLE IF NOT EXISTS citizen_roles (
      CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
-CREATE TABLE IF NOT EXISTS outbox_citizen_events (
+CREATE TABLE IF NOT EXISTS citizen_events (
      id UUID PRIMARY KEY,
      aggregate_id UUID NOT NULL,
-     aggregate_type VARCHAR NOT NULL,
      type VARCHAR NOT NULL,
      payload BYTEA,
      topic VARCHAR,
@@ -44,6 +43,6 @@ CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name);
 CREATE INDEX IF NOT EXISTS idx_citizen_roles_role_id ON citizen_roles(role_id);
 CREATE INDEX IF NOT EXISTS idx_citizen_roles_citizen_id ON citizen_roles(citizen_id);
 
-CREATE INDEX IF NOT EXISTS idx_outbox_processed_created_aggregate
-    ON outbox_citizen_events (processed, created_at, aggregate_id);
+CREATE INDEX IF NOT EXISTS idx_processed_created_aggregate
+    ON citizen_events (processed, created_at, aggregate_id);
 

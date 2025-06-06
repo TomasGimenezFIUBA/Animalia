@@ -1,17 +1,27 @@
 package com.tomasgimenez.citizen_command_service.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 import com.tomasgimenez.citizen_command_service.model.entity.RoleEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.repository.RoleRepository;
 
-import jakarta.persistence.EntityNotFoundException;
+import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class RoleServiceImplTest {
 
@@ -50,26 +60,6 @@ class RoleServiceImplTest {
     assertTrue(result.containsAll(foundEntities));
   }
 
-
-  /*@Test
-  void getRoleByName_shouldCacheResult() {
-    RoleName roleName = RoleName.CIVIL;
-    RoleEntity roleEntity = new RoleEntity();
-    roleEntity.setName(roleName);
-
-    when(roleRepository.findByName(roleName)).thenReturn(Optional.of(roleEntity));
-
-    // First call - fetch from repository
-    RoleEntity result1 = roleService.getRoleByName(roleName);
-    assertEquals(roleEntity, result1);
-    verify(roleRepository, times(1)).findByName(roleName);
-
-    // Second call - fetch from cache
-    RoleEntity result2 = roleService.getRoleByName(roleName);
-    assertEquals(roleEntity, result2);
-    verify(roleRepository, times(1)).findByName(roleName); // Repository should not be called again
-  }*/
-
   @Test
   void getRoleByName_shouldThrowExceptionWhenRoleNotFound() {
     RoleName roleName = RoleName.GENERAL;
@@ -92,6 +82,47 @@ class RoleServiceImplTest {
     RoleEntity result = roleService.getRoleByName(roleName);
 
     assertEquals(roleEntity, result);
+    verify(roleRepository, times(1)).findByName(roleName);
+  }
+
+  @Test
+  void getRoleByName_shouldThrowDatabaseAccessExceptionOnUnexpectedError() {
+    RoleName roleName = RoleName.GENERAL;
+
+    when(roleRepository.findByName(roleName)).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseReadException exception = assertThrows(DatabaseReadException.class,
+        () -> roleService.getRoleByName(roleName));
+
+    assertTrue(exception.getMessage().contains("Error accessing database for role with name: " + roleName));
+    verify(roleRepository, times(1)).findByName(roleName);
+  }
+
+  @Test
+  void getRolesByRoleNames_shouldThrowDatabaseAccessExceptionOnUnexpectedError() {
+    RoleName roleName = RoleName.GENERAL;
+    Set<RoleName> roleNameSet = Set.of(roleName);
+
+    when(roleRepository.findByName(roleName)).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseReadException exception = assertThrows(DatabaseReadException.class,
+        () -> roleService.getRolesByRoleNames(roleNameSet));
+
+    assertTrue(exception.getMessage().contains("Error accessing database for role with name: " + roleName));
+    verify(roleRepository, times(1)).findByName(roleName);
+  }
+
+  @Test
+  void getRolesByRoleNames_shouldThrowEntityNotFoundExceptionWhenRoleNotFound() {
+    RoleName roleName = RoleName.GENERAL;
+    Set<RoleName> roleNameSet = Set.of(roleName);
+
+    when(roleRepository.findByName(roleName)).thenReturn(Optional.empty());
+
+    EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+        () -> roleService.getRolesByRoleNames(roleNameSet));
+
+    assertTrue(exception.getMessage().contains("Role not found with name: " + roleName));
     verify(roleRepository, times(1)).findByName(roleName);
   }
 }

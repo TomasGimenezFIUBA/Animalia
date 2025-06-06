@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "outbox_citizen_events")
+@Table(name = "citizen_events")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -32,9 +32,6 @@ public class CitizenEventEntity {
 
   @Column(nullable = false)
   private UUID aggregateId;
-
-  @Column(nullable = false)
-  private String aggregateType;
 
   @Column(nullable = false)
   private String type;

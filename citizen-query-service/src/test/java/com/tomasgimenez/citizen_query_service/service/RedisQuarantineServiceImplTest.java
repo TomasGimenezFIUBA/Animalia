@@ -1,13 +1,22 @@
 package com.tomasgimenez.citizen_query_service.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 
 class RedisQuarantineServiceImplTest {
 
@@ -88,5 +97,35 @@ class RedisQuarantineServiceImplTest {
   void recordFailureForCitizen_returnsFalse_whenRedisReturnsNull() {
     when(hashOps.increment("citizen:failureCount", CITIZEN_ID, 1)).thenReturn(null);
     assertFalse(service.recordFailureForCitizen(CITIZEN_ID));
+  }
+
+  @Test
+  void isInQuarantine_shouldThrowDatabaseReadException_whenUnexpectedExceptionIsThrown() {
+    when(hashOps.get("citizen:failureCount", CITIZEN_ID)).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseReadException exception = assertThrows(DatabaseReadException.class,
+        () -> service.isInQuarantine(CITIZEN_ID));
+
+    assertEquals("Error accessing Redis for citizen quarantine status: " + CITIZEN_ID, exception.getMessage());
+  }
+
+  @Test
+  void resetQuarantineCounter_shouldThrowDatabaseWriteException_whenUnexpectedExceptionIsThrown() {
+    doThrow(new RuntimeException("Unexpected error")).when(hashOps).delete("citizen:failureCount", CITIZEN_ID);
+
+    DatabaseWriteException exception = assertThrows(DatabaseWriteException.class,
+        () -> service.resetQuarantineCounter(CITIZEN_ID));
+
+    assertEquals("Failed to reset quarantine counter in Redis for citizen: " + CITIZEN_ID, exception.getMessage());
+  }
+
+  @Test
+  void recordFailureForCitizen_shouldThrowDatabaseWriteException_whenUnexpectedExceptionIsThrown() {
+    when(hashOps.increment("citizen:failureCount", CITIZEN_ID, 1)).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseWriteException exception = assertThrows(DatabaseWriteException.class,
+        () -> service.recordFailureForCitizen(CITIZEN_ID));
+
+    assertEquals("Failed to record failure in Redis for citizen: " + CITIZEN_ID, exception.getMessage());
   }
 }
