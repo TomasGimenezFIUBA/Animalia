@@ -320,7 +320,7 @@ class CitizenServiceImplTest {
   }
 
   @Test
-  void getCitizensByRoleName_shouldThrowOnRepositoryError() {
+  void getCitizensByRoleName_shouldThrowExceptionOnRepositoryError() {
     when(citizenRepository.findByRoleName(role.getName())).thenThrow(new RuntimeException("DB error") {});
 
     assertThrows(DatabaseReadException.class, () -> citizenService.getCitizensByRoleName(role.getName()));

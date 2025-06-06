@@ -66,7 +66,7 @@ class CitizenEventPublisherJobTest {
     CitizenEventEntity event = buildEvent(id);
     when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
     when(citizenEventProducer.sendCitizenEvent(any(), any(), any(), any()))
-        .thenThrow(new RuntimeException("fail"));
+        .thenThrow(new MessageProductionException("fail", new RuntimeException()));
 
     job.publishPendingEvents();
 
