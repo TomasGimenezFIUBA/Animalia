@@ -1,4 +1,4 @@
-package com.tomasgimenez.citizen_command_service.exception;
+package com.tomasgimenez.citizen_command_service.exception.handler;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;

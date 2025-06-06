@@ -1,16 +1,25 @@
 package com.tomasgimenez.citizen_command_service.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
 import com.tomasgimenez.citizen_command_service.repository.SpeciesRepository;
+import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
 
-import jakarta.persistence.EntityNotFoundException;
+import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class SpeciesServiceImplTest {
 
@@ -90,5 +99,30 @@ class SpeciesServiceImplTest {
 
     assertThrows(EntityNotFoundException.class,
         () -> speciesService.getByIds(ids));
+  }
+
+  @Test
+  void getById_shouldThrowDatabaseAccessExceptionOnUnexpectedError() {
+    UUID id = UUID.randomUUID();
+    when(speciesRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseAccessException ex = assertThrows(DatabaseAccessException.class,
+        () -> speciesService.getById(id));
+
+    assertTrue(ex.getMessage().contains("Error accessing database"));
+  }
+
+  @Test
+  void getByIds_shouldThrowDatabaseAccessExceptionOnUnexpectedError() {
+    UUID id1 = UUID.randomUUID();
+    UUID id2 = UUID.randomUUID();
+    Set<UUID> ids = Set.of(id1, id2);
+
+    when(speciesRepository.findById(any())).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseAccessException ex = assertThrows(DatabaseAccessException.class,
+        () -> speciesService.getByIds(ids));
+
+    assertTrue(ex.getMessage().contains("Error accessing database"));
   }
 }

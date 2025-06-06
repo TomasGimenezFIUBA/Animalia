@@ -4,12 +4,13 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
 
-public interface OutboxCitizenEventRepository extends JpaRepository<CitizenEventEntity, UUID> {
+public interface CitizenEventRepository extends JpaRepository<CitizenEventEntity, UUID> {
   @Query(
       value = """
     SELECT *
@@ -28,4 +29,7 @@ public interface OutboxCitizenEventRepository extends JpaRepository<CitizenEvent
   )
   List<CitizenEventEntity> findOldestUnprocessedPerAggregateId(@Param("limit") int limit);
 
+  @Modifying
+  @Query("UPDATE CitizenEventEntity c SET c.processed = true WHERE c.id IN :ids")
+  void markAllAsProcessedById(@Param("ids") List<UUID> ids);
 }

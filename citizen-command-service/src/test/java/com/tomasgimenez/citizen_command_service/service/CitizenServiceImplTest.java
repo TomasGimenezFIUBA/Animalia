@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,24 +17,26 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
 import com.tomasgimenez.citizen_command_service.exception.EntityConflictException;
 import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
-import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
-import com.tomasgimenez.citizen_command_service.model.entity.*;
+import com.tomasgimenez.citizen_command_service.exception.InvalidEntityReferenceException;
+import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
+import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.RoleEntity;
+import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
+import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
-import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
-import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 
-import jakarta.persistence.EntityNotFoundException;
+import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
+import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+
 import jakarta.persistence.PessimisticLockException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 
 class CitizenServiceImplTest {
@@ -43,7 +46,7 @@ class CitizenServiceImplTest {
   private RolePolicyValidator rolePolicyValidator;
   private RoleService roleService;
   private CitizenServiceImpl citizenService;
-  private OutboxCitizenEventRepository outboxCitizenEventRepository;
+  private CitizenEventService citizenEventService;
   private CitizenEntity citizen;
   private SpeciesEntity species;
   private RoleEntity role;
@@ -54,15 +57,11 @@ class CitizenServiceImplTest {
     speciesService = mock(SpeciesService.class);
     rolePolicyValidator = mock(RolePolicyValidator.class);
     roleService = mock(RoleService.class);
-    CitizenEventMapper citizenEventMapper = new CitizenEventMapper();
-    citizenEventMapper.setSource("test-source");
-    outboxCitizenEventRepository = mock(OutboxCitizenEventRepository.class);
-    AvroSerializer avroSerializer = mock(AvroSerializer.class);
-    KafkaTopics kafkaTopics = mock(KafkaTopics.class);
+    citizenEventService = mock(CitizenEventService.class);
 
     citizenService = new CitizenServiceImpl(
-        citizenRepository, speciesService, roleService, citizenEventMapper,
-        outboxCitizenEventRepository, avroSerializer, kafkaTopics, rolePolicyValidator
+        citizenRepository, speciesService, roleService,
+        rolePolicyValidator, citizenEventService
     );
 
     species = new SpeciesEntity(UUID.randomUUID(), "Lion", 190.0, 1.2);
@@ -82,7 +81,7 @@ class CitizenServiceImplTest {
 
     verify(rolePolicyValidator).validate(roles, Optional.empty());
     verify(citizenRepository).save(any());
-    verify(outboxCitizenEventRepository).save(any(CitizenEventEntity.class));
+    verify(citizenEventService, times(1)).createCreatedEvent(citizen);
   }
 
   @Test
@@ -114,9 +113,9 @@ class CitizenServiceImplTest {
     assertEquals(2, result.size());
     assertTrue(result.stream().anyMatch(c -> c.getName().equals("A")));
     assertTrue(result.stream().anyMatch(c -> c.getName().equals("B")));
-    verify(rolePolicyValidator).validateBulk(List.of(r1, r2));
-    verify(citizenRepository).saveAll(any());
-    verify(outboxCitizenEventRepository).saveAll(any(List.class));
+    verify(rolePolicyValidator, times(1)).validateBulk(List.of(r1, r2));
+    verify(citizenRepository, times(1)).saveAll(any());
+    verify(citizenEventService, times(requests.size())).createCreatedEvent(any());
   }
 
   @Test
@@ -170,19 +169,31 @@ class CitizenServiceImplTest {
 
     when(citizenRepository.findById(id)).thenReturn(Optional.empty());
 
-    EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+    assertThrows(EntityNotFoundException.class,
         () -> citizenService.getById(id));
 
-    assertTrue(exception.getMessage().contains("Citizen not found with id: " + id));
-    verify(citizenRepository).findById(id);
+    verify(citizenRepository, times(1)).findById(id);
   }
 
   @Test
-  void deleteCitizen_shouldCallRepository() {
+  void getById_shouldThrowDatabaseAccessExceptionWhenRepositoryThrowsException() {
+    UUID id = UUID.randomUUID();
+
+    when(citizenRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
+
+    DatabaseAccessException exception = assertThrows(DatabaseAccessException.class,
+        () -> citizenService.getById(id));
+
+    assertTrue(exception.getMessage().contains("Error accessing database for citizen with ID: " + id));
+    verify(citizenRepository, times(1)).findById(id);
+  }
+
+  @Test
+  void deleteCitizen_shouldCallRepositoryAndCitizenEventService() {
     UUID id = UUID.randomUUID();
     citizenService.deleteCitizen(id);
     verify(citizenRepository).deleteById(id);
-    verify(outboxCitizenEventRepository).save(any(CitizenEventEntity.class));
+    verify(citizenEventService, times(1)).createDeletedEvent(id);
   }
 
   @Test
@@ -200,7 +211,7 @@ class CitizenServiceImplTest {
     verify(rolePolicyValidator, never()).validate(any(), any());
     verify(roleService, never()).getRolesByRoleNames(any());
     verify(speciesService, never()).getById(any());
-    verify(outboxCitizenEventRepository).save(any(CitizenEventEntity.class));
+    verify(citizenEventService, times(1)).createUpdatedEvent(citizen);
   }
 
   @Test
@@ -217,7 +228,7 @@ class CitizenServiceImplTest {
     verify(rolePolicyValidator, never()).validate(any(), any());
     verify(roleService, never()).getRolesByRoleNames(any());
     verify(speciesService, never()).getById(any());
-    verify(outboxCitizenEventRepository).save(any(CitizenEventEntity.class));
+    verify(citizenEventService, times(1)).createUpdatedEvent(citizen);
   }
 
   @Test
@@ -253,7 +264,7 @@ class CitizenServiceImplTest {
     verify(citizenRepository).save(citizen);
     verify(roleService).getRolesByRoleNames(roleNames);
     verify(speciesService, never()).getById(any());
-    verify(outboxCitizenEventRepository).save(any(CitizenEventEntity.class));
+    verify(citizenEventService, times(1)).createUpdatedEvent(citizen);
   }
 
   @Test
@@ -275,7 +286,7 @@ class CitizenServiceImplTest {
 
     when(speciesService.getByIds(Set.of(s1))).thenReturn(Set.of());
 
-    assertThrows(EntityNotFoundException.class,
+    assertThrows(InvalidEntityReferenceException.class,
         () -> citizenService.createCitizens(requests));
   }
 
@@ -286,7 +297,7 @@ class CitizenServiceImplTest {
 
     when(speciesService.getById(species.getId())).thenReturn(species);
     when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(role));
-    when(citizenRepository.save(any())).thenThrow(new DataAccessException("DB error") {});
+    when(citizenRepository.save(any())).thenThrow(new RuntimeException("DB error") {});
 
     assertThrows(EntityPersistenceException.class, () -> citizenService.createCitizen(request));
   }
@@ -303,22 +314,22 @@ class CitizenServiceImplTest {
 
     when(speciesService.getByIds(Set.of(s1))).thenReturn(Set.of(spec));
     when(roleService.getRolesByRoleNames(Set.of(RoleName.CIVIL))).thenReturn(Set.of(civ));
-    when(citizenRepository.saveAll(any())).thenThrow(new DataAccessException("DB error") {});
+    when(citizenRepository.saveAll(any())).thenThrow(new RuntimeException("DB error") {});
 
     assertThrows(EntityPersistenceException.class, () -> citizenService.createCitizens(requests));
   }
 
   @Test
   void getCitizensByRoleName_shouldThrowOnRepositoryError() {
-    when(citizenRepository.findByRoleName(role.getName()))
-        .thenThrow(new DataAccessException("DB error") {});
-    assertThrows(DataAccessException.class, () -> citizenService.getCitizensByRoleName(role.getName()));
+    when(citizenRepository.findByRoleName(role.getName())).thenThrow(new RuntimeException("DB error") {});
+
+    assertThrows(DatabaseAccessException.class, () -> citizenService.getCitizensByRoleName(role.getName()));
   }
 
   @Test
   void deleteCitizen_shouldThrowOnRepositoryError() {
     UUID id = UUID.randomUUID();
-    doThrow(new DataAccessException("DB error") {}).when(citizenRepository).deleteById(id);
+    doThrow(new RuntimeException("DB error") {}).when(citizenRepository).deleteById(id);
     assertThrows(EntityPersistenceException.class, () -> citizenService.deleteCitizen(id));
   }
 
@@ -330,6 +341,7 @@ class CitizenServiceImplTest {
     when(citizenRepository.save(any())).thenThrow(new DataIntegrityViolationException("Invalid data"));
 
     assertThrows(EntityConflictException.class, () -> citizenService.updateCitizen(request));
+    verify(citizenEventService, never()).createUpdatedEvent(any());
   }
 
   @Test
@@ -340,5 +352,228 @@ class CitizenServiceImplTest {
         .thenThrow(new PessimisticLockException("", null, ""));
 
     assertThrows(EntityConflictException.class, () -> citizenService.updateCitizen(request));
+    verify(citizenEventService, never()).createUpdatedEvent(any());
+  }
+
+  @Test
+  void createCitizen_shouldPropagateRolePolicyException() {
+    Set<RoleName> roles = Set.of(role.getName());
+    CreateCitizenRequest request = new CreateCitizenRequest("Luna", species.getId(), true, roles);
+
+    doThrow(new RolePolicyException("Invalid role policy"))
+        .when(rolePolicyValidator).validate(roles, Optional.empty());
+
+    RolePolicyException exception = assertThrows(RolePolicyException.class,
+        () -> citizenService.createCitizen(request));
+
+    assertEquals("Invalid role policy", exception.getMessage());
+    verify(rolePolicyValidator).validate(roles, Optional.empty());
+    verify(citizenRepository, never()).save(any());
+  }
+
+  @Test
+  void updateCitizen_shouldPropagateRolePolicyException() {
+    Set<RoleName> roles = Set.of(role.getName());
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), null, null, null, roles);
+
+    when(citizenRepository.findByIdForUpdate(citizen.getId())).thenReturn(Optional.of(citizen));
+    doThrow(new RolePolicyException("Invalid role policy"))
+        .when(rolePolicyValidator).validate(roles, Optional.of(citizen.getId()));
+
+    RolePolicyException exception = assertThrows(RolePolicyException.class,
+        () -> citizenService.updateCitizen(request));
+
+    assertEquals("Invalid role policy", exception.getMessage());
+    verify(rolePolicyValidator).validate(roles, Optional.of(citizen.getId()));
+    verify(citizenRepository, never()).save(any());
+  }
+
+  @Test
+  void createCitizens_shouldPropagateRolePolicyException() {
+    UUID s1 = UUID.randomUUID();
+    Set<RoleName> r1 = Set.of(RoleName.CIVIL);
+    List<CreateCitizenRequest> requests = List.of(
+        new CreateCitizenRequest("A", s1, true, r1)
+    );
+
+    doThrow(new RolePolicyException("Invalid role policy"))
+        .when(rolePolicyValidator).validateBulk(List.of(r1));
+
+    RolePolicyException exception = assertThrows(RolePolicyException.class,
+        () -> citizenService.createCitizens(requests));
+
+    assertEquals("Invalid role policy", exception.getMessage());
+    verify(rolePolicyValidator).validateBulk(List.of(r1));
+    verify(citizenRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void createCitizen_shouldThrowInvalidEntityReferenceExceptionWhenSpeciesNotFound() {
+    Set<RoleName> roles = Set.of(role.getName());
+    CreateCitizenRequest request = new CreateCitizenRequest("Luna", species.getId(), true, roles);
+
+    when(speciesService.getById(species.getId()))
+        .thenThrow(new EntityNotFoundException("Species not found"));
+
+    assertThrows(InvalidEntityReferenceException.class,
+        () -> citizenService.createCitizen(request));
+
+    verify(speciesService).getById(species.getId());
+    verify(roleService, never()).getRolesByRoleNames(any());
+    verify(citizenRepository, never()).save(any());
+  }
+
+  @Test
+  void createCitizen_shouldThrowInvalidEntityReferenceExceptionWhenRoleNotFound() {
+    Set<RoleName> roles = Set.of(role.getName());
+    CreateCitizenRequest request = new CreateCitizenRequest("Luna", species.getId(), true, roles);
+
+    when(speciesService.getById(species.getId())).thenReturn(species);
+    when(roleService.getRolesByRoleNames(roles))
+        .thenThrow(new EntityNotFoundException("Role not found"));
+
+    assertThrows(InvalidEntityReferenceException.class,
+        () -> citizenService.createCitizen(request));
+
+    verify(speciesService).getById(species.getId());
+    verify(roleService).getRolesByRoleNames(roles);
+    verify(citizenRepository, never()).save(any());
+  }
+
+  @Test
+  void updateCitizen_shouldThrowInvalidEntityReferenceExceptionWhenSpeciesNotFound() {
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), null, species.getId(), null, null);
+
+    when(citizenRepository.findByIdForUpdate(citizen.getId())).thenReturn(Optional.of(citizen));
+    when(speciesService.getById(species.getId()))
+        .thenThrow(new EntityNotFoundException("Species not found"));
+
+    InvalidEntityReferenceException exception = assertThrows(InvalidEntityReferenceException.class,
+        () -> citizenService.updateCitizen(request));
+
+    assertTrue(exception.getMessage().contains("Invalid reference in update request: Species not found"));
+    verify(speciesService).getById(species.getId());
+    verify(citizenRepository, never()).save(any());
+  }
+
+  @Test
+  void updateCitizen_shouldThrowInvalidEntityReferenceExceptionWhenRoleNotFound() {
+    Set<RoleName> roles = Set.of(role.getName());
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), null, null, null, roles);
+
+    when(citizenRepository.findByIdForUpdate(citizen.getId())).thenReturn(Optional.of(citizen));
+    when(roleService.getRolesByRoleNames(roles))
+        .thenThrow(new EntityNotFoundException("Role not found"));
+
+    InvalidEntityReferenceException exception = assertThrows(InvalidEntityReferenceException.class,
+        () -> citizenService.updateCitizen(request));
+
+    assertTrue(exception.getMessage().contains("Invalid reference in update request: Role not found"));
+    verify(roleService).getRolesByRoleNames(roles);
+    verify(citizenRepository, never()).save(any());
+  }
+
+  @Test
+  void createCitizens_shouldThrowInvalidEntityReferenceExceptionWhenSpeciesNotFound() {
+    UUID s1 = UUID.randomUUID();
+    List<CreateCitizenRequest> requests = List.of(
+        new CreateCitizenRequest("A", s1, true, Set.of(RoleName.CIVIL))
+    );
+
+    when(speciesService.getByIds(Set.of(s1)))
+        .thenThrow(new EntityNotFoundException("Species not found"));
+
+    assertThrows(InvalidEntityReferenceException.class,
+        () -> citizenService.createCitizens(requests));
+
+    verify(speciesService).getByIds(Set.of(s1));
+    verify(roleService, never()).getRolesByRoleNames(any());
+    verify(citizenRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void createCitizens_shouldThrowInvalidEntityReferenceExceptionWhenRoleNotFound() {
+    UUID s1 = UUID.randomUUID();
+    Set<RoleName> roles = Set.of(RoleName.CIVIL);
+    List<CreateCitizenRequest> requests = List.of(
+        new CreateCitizenRequest("A", s1, true, roles)
+    );
+
+    SpeciesEntity spec = new SpeciesEntity(s1, "s", 1.0, 1.0);
+    when(speciesService.getByIds(Set.of(s1))).thenReturn(Set.of(spec));
+    when(roleService.getRolesByRoleNames(roles))
+        .thenThrow(new EntityNotFoundException("Role not found"));
+
+    assertThrows(InvalidEntityReferenceException.class,
+        () -> citizenService.createCitizens(requests));
+
+    verify(speciesService).getByIds(Set.of(s1));
+    verify(roleService).getRolesByRoleNames(roles);
+    verify(citizenRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void createCitizen_shouldThrowEntityPersistenceExceptionOnRepositoryError() {
+    Set<RoleName> roles = Set.of(role.getName());
+    CreateCitizenRequest request = new CreateCitizenRequest("Luna", species.getId(), true, roles);
+
+    when(speciesService.getById(species.getId())).thenReturn(species);
+    when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(role));
+    when(citizenRepository.save(any())).thenThrow(new RuntimeException("Unexpected error"));
+
+    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+        () -> citizenService.createCitizen(request));
+
+    assertTrue(exception.getMessage().contains("Error while creating citizen"));
+    verify(citizenRepository).save(any());
+  }
+
+  @Test
+  void createCitizens_shouldThrowEntityPersistenceExceptionOnRepositoryError() {
+    UUID s1 = UUID.randomUUID();
+    Set<RoleName> roles = Set.of(RoleName.CIVIL);
+    List<CreateCitizenRequest> requests = List.of(
+        new CreateCitizenRequest("A", s1, true, roles)
+    );
+
+    SpeciesEntity spec = new SpeciesEntity(s1, "Species", 1.0, 1.0);
+    RoleEntity civ = new RoleEntity(UUID.randomUUID(), RoleName.CIVIL);
+
+    when(speciesService.getByIds(Set.of(s1))).thenReturn(Set.of(spec));
+    when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(civ));
+    when(citizenRepository.saveAll(any())).thenThrow(new RuntimeException("Unexpected error"));
+
+    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+        () -> citizenService.createCitizens(requests));
+
+    assertTrue(exception.getMessage().contains("Error while creating citizens"));
+    verify(citizenRepository).saveAll(any());
+  }
+
+  @Test
+  void updateCitizen_shouldThrowEntityPersistenceExceptionOnRepositoryError() {
+    UpdateCitizenRequest request = new UpdateCitizenRequest(citizen.getId(), "Updated Name", null, null, null);
+
+    when(citizenRepository.findByIdForUpdate(citizen.getId())).thenReturn(Optional.of(citizen));
+    when(citizenRepository.save(any())).thenThrow(new RuntimeException("Unexpected error"));
+
+    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+        () -> citizenService.updateCitizen(request));
+
+    assertTrue(exception.getMessage().contains("Error while updating citizen"));
+    verify(citizenRepository).save(any());
+  }
+
+  @Test
+  void deleteCitizen_shouldThrowEntityPersistenceExceptionOnRepositoryError() {
+    UUID id = UUID.randomUUID();
+
+    doThrow(new RuntimeException("Unexpected error")).when(citizenRepository).deleteById(id);
+
+    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+        () -> citizenService.deleteCitizen(id));
+
+    assertTrue(exception.getMessage().contains("Error while deleting citizen"));
+    verify(citizenRepository).deleteById(id);
   }
 }

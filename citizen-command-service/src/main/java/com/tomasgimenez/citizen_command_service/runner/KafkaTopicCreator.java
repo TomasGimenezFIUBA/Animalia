@@ -16,6 +16,11 @@ import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/*
+* This class is responsible for creating Kafka topics at application startup.
+* It is an easy way to ensure that the necessary topics are created for the demo
+* */
+
 @Component
 @RequiredArgsConstructor
 @Slf4j

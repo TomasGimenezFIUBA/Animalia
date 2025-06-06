@@ -12,20 +12,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.kafka.support.Acknowledgment;
 
 import com.tomasgimenez.animalia.avro.*;
+import com.tomasgimenez.citizen_common.exception.DeserializationException;
 import com.tomasgimenez.citizen_common.kafka.AvroDeserializer;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenEventHandler;
 import com.tomasgimenez.citizen_query_service.messaging.QuarantinePublisher;
 import com.tomasgimenez.citizen_query_service.service.EventDeduplicationService;
 import com.tomasgimenez.citizen_query_service.service.QuarantineService;
 
-public class CitizenKafkaListenerTest {
+public class KafkaCitizenConsumerTest {
 
   private AvroDeserializer deserializer;
   private CitizenEventHandler eventHandler;
   private QuarantineService quarantineService;
   private QuarantinePublisher quarantinePublisher;
   private EventDeduplicationService deduplicationService;
-  private CitizenKafkaListener listener;
+  private KafkaCitizenConsumer listener;
   private Acknowledgment ack;
 
   @BeforeEach
@@ -35,7 +36,7 @@ public class CitizenKafkaListenerTest {
     quarantineService = mock(QuarantineService.class);
     quarantinePublisher = mock(QuarantinePublisher.class);
     deduplicationService = mock(EventDeduplicationService.class);
-    listener = new CitizenKafkaListener(deserializer, eventHandler, quarantineService, quarantinePublisher, deduplicationService);
+    listener = new KafkaCitizenConsumer(deserializer, eventHandler, quarantineService, quarantinePublisher, deduplicationService);
     ack = mock(Acknowledgment.class);
   }
 
@@ -53,7 +54,7 @@ public class CitizenKafkaListenerTest {
   }
 
   @Test
-  void shouldSkipIfEventAlreadyProcessed() {
+  void shouldSkipIfEventAlreadyProcessed() throws DeserializationException {
     var eventId = UUID.randomUUID();
     var payload = new CitizenCreatedEvent(
         eventId.toString(),
@@ -85,7 +86,7 @@ public class CitizenKafkaListenerTest {
   }
 
   @Test
-  void shouldHandleCreatedEvent() {
+  void shouldHandleCreatedEvent() throws DeserializationException {
     var id = UUID.randomUUID();
     var eventId = UUID.randomUUID().toString();
     var event = new CitizenCreatedEvent(
@@ -120,7 +121,7 @@ public class CitizenKafkaListenerTest {
   }
 
   @Test
-  void shouldPublishToQuarantineOnDeserializationError() {
+  void shouldPublishToQuarantineOnDeserializationError() throws DeserializationException {
     var record = record("1", new byte[]{});
 
     when(quarantineService.isInQuarantine("1"))

@@ -10,10 +10,12 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.stereotype.Component;
 
+import com.tomasgimenez.citizen_common.exception.SerializationException;
+
 @Component
 public class AvroSerializer {
 
-  public <T extends SpecificRecordBase> byte[] serialize(T record) {
+  public <T extends SpecificRecordBase> byte[] serialize(T record) throws SerializationException {
     try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       DatumWriter<T> writer = new SpecificDatumWriter<>(record.getSchema());
       BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
@@ -21,7 +23,7 @@ public class AvroSerializer {
       encoder.flush();
       return out.toByteArray();
     } catch (IOException e) {
-      throw new RuntimeException("Failed to serialize Avro record", e);
+      throw new SerializationException("Failed to serialize Avro record", e);
     }
   }
 }

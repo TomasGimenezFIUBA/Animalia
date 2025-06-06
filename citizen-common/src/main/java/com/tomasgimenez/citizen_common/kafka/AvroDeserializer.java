@@ -9,15 +9,17 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 import org.springframework.stereotype.Component;
 
+import com.tomasgimenez.citizen_common.exception.DeserializationException;
+
 @Component
 public class AvroDeserializer {
-  public <T extends SpecificRecord> T deserialize(byte[] data, Class<T> clazz) {
+  public <T extends SpecificRecord> T deserialize(byte[] data, Class<T> clazz) throws DeserializationException {
     try {
       DatumReader<T> reader = new SpecificDatumReader<>(clazz);
       Decoder decoder = DecoderFactory.get().binaryDecoder(data, null);
       return reader.read(null, decoder);
     } catch (IOException e) {
-      throw new RuntimeException("Error deserializing Avro", e);
+      throw new DeserializationException("Error deserializing Avro", e);
     }
   }
 

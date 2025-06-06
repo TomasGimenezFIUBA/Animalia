@@ -1,72 +1,147 @@
 package com.tomasgimenez.citizen_command_service.jobs;
 
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
-import com.tomasgimenez.citizen_command_service.repository.OutboxCitizenEventRepository;
 import com.tomasgimenez.citizen_command_service.service.CitizenEventProducerService;
+import com.tomasgimenez.citizen_command_service.service.CitizenEventService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-
-import static org.mockito.Mockito.*;
+import org.mockito.*;
+import org.springframework.kafka.support.SendResult;
 
 class CitizenEventPublisherJobTest {
 
-  private OutboxCitizenEventRepository repository;
-  private CitizenEventProducerService producerService;
+  @Mock
+  private CitizenEventService citizenEventService;
+
+  @Mock
+  private CitizenEventProducerService citizenEventProducerService;
+
+  @InjectMocks
   private CitizenEventPublisherJob job;
 
   @BeforeEach
   void setUp() {
-    repository = mock(OutboxCitizenEventRepository.class);
-    producerService = mock(CitizenEventProducerService.class);
-    job = new CitizenEventPublisherJob(repository, producerService);
+    MockitoAnnotations.openMocks(this);
   }
 
   @Test
-  void publishPendingEvents_shouldSendAndMarkEventsAsProcessed() {
-    UUID aggregateId = UUID.randomUUID();
+  void shouldDoNothingWhenNoEvents() {
+    when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(Collections.emptyList());
+
+    job.publishPendingEvents();
+
+    verify(citizenEventService, never()).markAllAsProcessedById(anyList());
+    verifyNoInteractions(citizenEventProducerService);
+  }
+
+  @Test
+  void shouldPublishAndMarkEventsSuccessfully() {
     UUID id = UUID.randomUUID();
-    byte[] payload = "data".getBytes();
-    CitizenEventEntity event = CitizenEventEntity.builder()
-        .id(id)
-        .aggregateId(aggregateId)
-        .aggregateType("Citizen")
-        .type("CREATED")
-        .payload(payload)
-        .topic("citizen-topic")
-        .processed(false)
-        .build();
-
-    when(repository.findOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
-
-    doAnswer(invocation -> {
-      Consumer<Void> callback = invocation.getArgument(3);
-      callback.accept(null);
-      return CompletableFuture.completedFuture(null);
-    }).when(producerService).sendCitizenEvent(
-        eq(aggregateId.toString()),
-        eq(payload),
-        eq("citizen-topic"),
-        any()
-    );
+    CitizenEventEntity event = buildEvent(id);
+    when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
+    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+        .thenAnswer(invocation -> {
+          var callback = invocation.getArgument(3, java.util.function.Consumer.class);
+          callback.accept(null); // simulate success
+          return CompletableFuture.completedFuture(null);
+        });
 
     job.publishPendingEvents();
 
-    verify(producerService).sendCitizenEvent(eq(aggregateId.toString()), eq(payload), eq("citizen-topic"), any());
-    verify(repository).save(argThat(saved -> saved.isProcessed() && saved.getId().equals(id)));
+    assertTrue(event.isProcessed());
+    verify(citizenEventService).markAllAsProcessedById(List.of(id));
   }
 
   @Test
-  void publishPendingEvents_shouldDoNothing_whenNoEventsAreFound() {
-    when(repository.findOldestUnprocessedPerAggregateId(70)).thenReturn(List.of());
+  void shouldIgnoreEventIfSendingFails() {
+    UUID id = UUID.randomUUID();
+    CitizenEventEntity event = buildEvent(id);
+    when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
+    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+        .thenThrow(new RuntimeException("fail"));
 
     job.publishPendingEvents();
 
-    verifyNoInteractions(producerService);
-    verify(repository, never()).save(any());
+    assertFalse(event.isProcessed());
+    verify(citizenEventService, never()).markAllAsProcessedById(any());
+  }
+
+  @Test
+  void shouldLogErrorWhenMarkingProcessedFails() {
+    UUID id = UUID.randomUUID();
+    CitizenEventEntity event = buildEvent(id);
+    when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
+    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+        .thenAnswer(invocation -> {
+          var callback = invocation.getArgument(3, java.util.function.Consumer.class);
+          callback.accept(null);
+          return CompletableFuture.completedFuture(null);
+        });
+
+    doThrow(new RuntimeException("DB failure"))
+        .when(citizenEventService).markAllAsProcessedById(List.of(id));
+
+    job.publishPendingEvents();
+
+    verify(citizenEventService).markAllAsProcessedById(List.of(id));
+    assertTrue(event.isProcessed());
+  }
+
+  @Test
+  void shouldProcessOnlySuccessfulEventsWhenOneFails() {
+    CitizenEventEntity event1 = buildEvent(UUID.randomUUID());
+    CitizenEventEntity event2 = buildEvent(UUID.randomUUID());
+    CitizenEventEntity event3 = buildEvent(UUID.randomUUID());
+
+    List<CitizenEventEntity> events = List.of(event1, event2, event3);
+    when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(events);
+
+    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+        .thenAnswer(invocation -> {
+          String aggregateId = invocation.getArgument(0);
+          var callback = invocation.getArgument(3, java.util.function.Consumer.class);
+
+          if (aggregateId.equals(event2.getAggregateId().toString())) {
+            CompletableFuture<SendResult<String, byte[]>> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new RuntimeException("Simulated failure"));
+            return failed;
+          }
+
+          callback.accept(null);
+          return CompletableFuture.completedFuture(null);
+        });
+
+    job.publishPendingEvents();
+
+    assertTrue(event1.isProcessed());
+    assertFalse(event2.isProcessed());
+    assertTrue(event3.isProcessed());
+
+    ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.forClass(List.class);
+    verify(citizenEventService).markAllAsProcessedById(captor.capture());
+
+    List<UUID> processedIds = captor.getValue();
+    assertEquals(2, processedIds.size());
+    assertTrue(processedIds.contains(event1.getId()));
+    assertTrue(processedIds.contains(event3.getId()));
+    assertFalse(processedIds.contains(event2.getId()));
+  }
+
+
+  private CitizenEventEntity buildEvent(UUID id) {
+    CitizenEventEntity event = new CitizenEventEntity();
+    event.setId(id);
+    event.setAggregateId(UUID.randomUUID());
+    event.setPayload("payload".getBytes());
+    event.setTopic("topic");
+    event.setProcessed(false);
+    return event;
   }
 }

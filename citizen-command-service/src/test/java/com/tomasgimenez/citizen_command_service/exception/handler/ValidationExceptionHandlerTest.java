@@ -1,4 +1,4 @@
-package com.tomasgimenez.citizen_command_service.exception;
+package com.tomasgimenez.citizen_command_service.exception.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+
+import com.tomasgimenez.citizen_command_service.exception.handler.ValidationExceptionHandler;
 
 public class ValidationExceptionHandlerTest {
 

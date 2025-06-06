@@ -28,7 +28,7 @@ public class UniqueRolePolicy implements RolePolicy {
   @Lazy
   private CitizenService citizenService;
 
-  private final List<RoleName> uniqueRoles = List.of(RoleName.FIRST_MINISTER, RoleName.TREASURER, RoleName.GENERAL);
+  public static final List<RoleName> uniqueRoles = List.of(RoleName.FIRST_MINISTER, RoleName.TREASURER, RoleName.GENERAL);
 
   @Override
   public void validate(Set<RoleName> roles, Optional<UUID> excludeId) {

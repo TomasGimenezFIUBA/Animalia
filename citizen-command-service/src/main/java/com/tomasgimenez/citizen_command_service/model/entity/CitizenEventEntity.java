@@ -34,9 +34,6 @@ public class CitizenEventEntity {
   private UUID aggregateId;
 
   @Column(nullable = false)
-  private String aggregateType;
-
-  @Column(nullable = false)
   private String type;
 
   @Lob

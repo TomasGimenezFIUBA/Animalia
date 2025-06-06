@@ -1,5 +1,6 @@
 package com.tomasgimenez.citizen_command_service.service;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -8,10 +9,11 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.tomasgimenez.citizen_command_service.config.CacheConfig;
+import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
 import com.tomasgimenez.citizen_command_service.repository.SpeciesRepository;
+import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,23 +27,26 @@ public class SpeciesServiceImpl implements SpeciesService {
   @Cacheable(value = CacheConfig.SPECIES_CACHE, key = "#id")
   @Override
   public SpeciesEntity getById(UUID id) {
-    return speciesRepository.findById(id).orElseThrow(() -> {
+    Optional<SpeciesEntity> optionalSpecies;
+
+    try {
+       optionalSpecies = speciesRepository.findById(id);
+    } catch (Exception e) {
+      log.error("Error fetching species by ID: {}", id, e);
+      throw new DatabaseAccessException(
+          "Error accessing database for species with ID: " + id, e);
+    }
+
+    return optionalSpecies.orElseThrow(() -> {
       log.warn("Species not found for ID: {}", id);
-      return new EntityNotFoundException("Species not found with ID: " + id);
+      return new EntityNotFoundException("Species not found for ID: " + id);
     });
   }
 
   @Override
   public Set<SpeciesEntity> getByIds(Set<UUID> ids) {
-    Set<SpeciesEntity> speciesSet = ids.stream()
-        .map(this::getById) // could be optimized but this is clear and use cache
-        .collect(Collectors.toSet());
-
-    if (speciesSet.size() != ids.size()) {
-      log.warn("Not all species found. Requested IDs: {}, Found count: {}", ids, speciesSet.size());
-      throw new EntityNotFoundException("Not all species found for IDs: " + ids);
-    }
-
-    return speciesSet;
+      return ids.stream()
+          .map(this::getById) // could be optimized but this is clear and uses cache
+          .collect(Collectors.toSet());
   }
 }

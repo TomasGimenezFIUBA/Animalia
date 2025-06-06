@@ -11,7 +11,7 @@ import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
 import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
 import com.tomasgimenez.citizen_common.kafka.AvroDeserializer;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenEventHandler;
-import com.tomasgimenez.citizen_query_service.messaging.CitizenListener;
+import com.tomasgimenez.citizen_query_service.messaging.CitizenConsumer;
 import com.tomasgimenez.citizen_query_service.messaging.QuarantinePublisher;
 import com.tomasgimenez.citizen_query_service.service.EventDeduplicationService;
 import com.tomasgimenez.citizen_query_service.service.QuarantineService;
@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CitizenKafkaListener implements CitizenListener {
+public class KafkaCitizenConsumer implements CitizenConsumer {
 
   private final AvroDeserializer avroDeserializer;
   private final CitizenEventHandler citizenEventHandler;
@@ -68,7 +68,7 @@ public class CitizenKafkaListener implements CitizenListener {
       handleQuarantine(citizenId, citizenEventRecord);
 
       log.error("Failed to process event for citizen {}: {}", citizenId, e.getMessage(), e);
-      throw e;
+      throw new RuntimeException("Error processing citizen event", e);
     }
   }
 

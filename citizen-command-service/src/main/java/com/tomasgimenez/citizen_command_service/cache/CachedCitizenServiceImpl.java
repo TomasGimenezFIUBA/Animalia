@@ -1,15 +1,16 @@
 package com.tomasgimenez.citizen_command_service.cache;
 
 import com.tomasgimenez.citizen_command_service.config.CacheConfig;
+import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
+import com.tomasgimenez.citizen_command_service.policy.role.UniqueRolePolicy;
 import com.tomasgimenez.citizen_command_service.service.CitizenService;
 import com.tomasgimenez.citizen_command_service.service.CitizenServiceImpl;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
@@ -35,9 +36,7 @@ public class CachedCitizenServiceImpl implements CitizenService {
   private final CitizenServiceImpl delegate;
   private final CacheManager cacheManager;
 
-  private static final Set<RoleName> CACHED_ROLES = Set.of(
-      RoleName.GENERAL, RoleName.FIRST_MINISTER, RoleName.TREASURER
-  );
+  private static final Set<RoleName> CACHED_ROLES = new HashSet<>(UniqueRolePolicy.uniqueRoles);
 
   @Override
   public CitizenEntity createCitizen(CreateCitizenRequest request) {
