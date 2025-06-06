@@ -7,8 +7,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
-import com.tomasgimenez.citizen_command_service.service.CitizenEventProducerService;
+import com.tomasgimenez.citizen_command_service.messaging.CitizenEventProducer;
 import com.tomasgimenez.citizen_command_service.service.CitizenEventService;
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class CitizenEventPublisherJobTest {
   private CitizenEventService citizenEventService;
 
   @Mock
-  private CitizenEventProducerService citizenEventProducerService;
+  private CitizenEventProducer citizenEventProducer;
 
   @InjectMocks
   private CitizenEventPublisherJob job;
@@ -38,15 +39,15 @@ class CitizenEventPublisherJobTest {
     job.publishPendingEvents();
 
     verify(citizenEventService, never()).markAllAsProcessedById(anyList());
-    verifyNoInteractions(citizenEventProducerService);
+    verifyNoInteractions(citizenEventProducer);
   }
 
   @Test
-  void shouldPublishAndMarkEventsSuccessfully() {
+  void shouldPublishAndMarkEventsSuccessfully() throws MessageProductionException {
     UUID id = UUID.randomUUID();
     CitizenEventEntity event = buildEvent(id);
     when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
-    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+    when(citizenEventProducer.sendCitizenEvent(any(), any(), any(), any()))
         .thenAnswer(invocation -> {
           var callback = invocation.getArgument(3, java.util.function.Consumer.class);
           callback.accept(null); // simulate success
@@ -60,11 +61,11 @@ class CitizenEventPublisherJobTest {
   }
 
   @Test
-  void shouldIgnoreEventIfSendingFails() {
+  void shouldIgnoreEventIfSendingFails() throws MessageProductionException {
     UUID id = UUID.randomUUID();
     CitizenEventEntity event = buildEvent(id);
     when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
-    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+    when(citizenEventProducer.sendCitizenEvent(any(), any(), any(), any()))
         .thenThrow(new RuntimeException("fail"));
 
     job.publishPendingEvents();
@@ -74,11 +75,11 @@ class CitizenEventPublisherJobTest {
   }
 
   @Test
-  void shouldLogErrorWhenMarkingProcessedFails() {
+  void shouldLogErrorWhenMarkingProcessedFails() throws MessageProductionException {
     UUID id = UUID.randomUUID();
     CitizenEventEntity event = buildEvent(id);
     when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(List.of(event));
-    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+    when(citizenEventProducer.sendCitizenEvent(any(), any(), any(), any()))
         .thenAnswer(invocation -> {
           var callback = invocation.getArgument(3, java.util.function.Consumer.class);
           callback.accept(null);
@@ -95,7 +96,7 @@ class CitizenEventPublisherJobTest {
   }
 
   @Test
-  void shouldProcessOnlySuccessfulEventsWhenOneFails() {
+  void shouldProcessOnlySuccessfulEventsWhenOneFails() throws MessageProductionException {
     CitizenEventEntity event1 = buildEvent(UUID.randomUUID());
     CitizenEventEntity event2 = buildEvent(UUID.randomUUID());
     CitizenEventEntity event3 = buildEvent(UUID.randomUUID());
@@ -103,7 +104,7 @@ class CitizenEventPublisherJobTest {
     List<CitizenEventEntity> events = List.of(event1, event2, event3);
     when(citizenEventService.getOldestUnprocessedPerAggregateId(70)).thenReturn(events);
 
-    when(citizenEventProducerService.sendCitizenEvent(any(), any(), any(), any()))
+    when(citizenEventProducer.sendCitizenEvent(any(), any(), any(), any()))
         .thenAnswer(invocation -> {
           String aggregateId = invocation.getArgument(0);
           var callback = invocation.getArgument(3, java.util.function.Consumer.class);

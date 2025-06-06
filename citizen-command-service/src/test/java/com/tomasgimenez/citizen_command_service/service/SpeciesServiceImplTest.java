@@ -15,7 +15,7 @@ import java.util.UUID;
 
 import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
 import com.tomasgimenez.citizen_command_service.repository.SpeciesRepository;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -106,7 +106,7 @@ class SpeciesServiceImplTest {
     UUID id = UUID.randomUUID();
     when(speciesRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
 
-    DatabaseAccessException ex = assertThrows(DatabaseAccessException.class,
+    DatabaseReadException ex = assertThrows(DatabaseReadException.class,
         () -> speciesService.getById(id));
 
     assertTrue(ex.getMessage().contains("Error accessing database"));
@@ -120,7 +120,7 @@ class SpeciesServiceImplTest {
 
     when(speciesRepository.findById(any())).thenThrow(new RuntimeException("Unexpected error"));
 
-    DatabaseAccessException ex = assertThrows(DatabaseAccessException.class,
+    DatabaseReadException ex = assertThrows(DatabaseReadException.class,
         () -> speciesService.getByIds(ids));
 
     assertTrue(ex.getMessage().contains("Error accessing database"));

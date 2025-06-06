@@ -12,10 +12,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityConflictException;
-import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 import com.tomasgimenez.citizen_command_service.exception.InvalidEntityReferenceException;
 import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 @ControllerAdvice
 public class EntityExceptionHandler {
@@ -38,16 +38,6 @@ public class EntityExceptionHandler {
   @ExceptionHandler(EntityConflictException.class)
   public ResponseEntity<Map<String, String>> handlePessimisticLockException(PessimisticLockException ex) {
     return createErrorResponse(HttpStatus.CONFLICT, "Resource is currently locked. Please try again later.");
-  }
-
-  @ExceptionHandler(EntityPersistenceException.class)
-  public ResponseEntity<Map<String, String>> handleEntityPersistenceException(EntityPersistenceException ex) {
-    return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage() != null ? ex.getMessage() : "Error persisting entity");
-  }
-
-  @ExceptionHandler(DatabaseAccessException.class)
-  public ResponseEntity<Map<String, String>> handleDatabaseAccessException(DatabaseAccessException ex) {
-    return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage() != null ? ex.getMessage() : "Error persisting entity");
   }
 
   private ResponseEntity<Map<String, String>> createErrorResponse(HttpStatus status, String message) {

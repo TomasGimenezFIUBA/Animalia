@@ -16,19 +16,22 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-class CitizenEventProducerServiceImplTest {
+import com.tomasgimenez.citizen_command_service.messaging.KafkaCitizenEventProducer;
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
+
+class KafkaCitizenEventProducerTest {
 
   private KafkaTemplate<String, byte[]> kafkaTemplate;
-  private CitizenEventProducerServiceImpl service;
+  private KafkaCitizenEventProducer service;
 
   @BeforeEach
   void setUp() {
     kafkaTemplate = mock(KafkaTemplate.class);
-    service = new CitizenEventProducerServiceImpl(kafkaTemplate);
+    service = new KafkaCitizenEventProducer(kafkaTemplate);
   }
 
   @Test
-  void sendCitizenEvent_shouldReturnCompletedFutureAndInvokeOnSuccess() {
+  void sendCitizenEvent_shouldReturnCompletedFutureAndInvokeOnSuccess() throws MessageProductionException {
     String key = UUID.randomUUID().toString();
     String topic = "citizen-topic";
     byte[] payload = "test-payload".getBytes();
@@ -55,7 +58,7 @@ class CitizenEventProducerServiceImplTest {
   }
 
   @Test
-  void sendCitizenEvent_shouldLogErrorIfExceptionOccurs() {
+  void sendCitizenEvent_shouldLogErrorIfExceptionOccurs() throws MessageProductionException {
     String key = UUID.randomUUID().toString();
     String topic = "citizen-topic";
     byte[] payload = "test-payload".getBytes();

@@ -9,6 +9,7 @@ import com.tomasgimenez.animalia.avro.CitizenCreatedEvent;
 import com.tomasgimenez.animalia.avro.CitizenDeletedEvent;
 import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
 import com.tomasgimenez.animalia.avro.CitizenUpdatedEvent;
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
 import com.tomasgimenez.citizen_common.kafka.AvroDeserializer;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenEventHandler;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenConsumer;
@@ -33,7 +34,8 @@ public class KafkaCitizenConsumer implements CitizenConsumer {
   @KafkaListener(topics = "${kafka.topics.citizen-event}", groupId = "${kafka.consumer.group-id}",
       containerFactory = "kafkaListenerContainerFactory")
   @Override
-  public void handleCitizenEvent(ConsumerRecord<String, byte[]> citizenEventRecord, Acknowledgment ack) {
+  public void handleCitizenEvent(ConsumerRecord<String, byte[]> citizenEventRecord, Acknowledgment ack)
+      throws MessageProductionException {
 
     String citizenId = citizenEventRecord.key();
 
@@ -72,7 +74,8 @@ public class KafkaCitizenConsumer implements CitizenConsumer {
     }
   }
 
-  private boolean handleQuarantine(String citizenId, ConsumerRecord<String, byte[]> consumerRecord) {
+  private boolean handleQuarantine(String citizenId, ConsumerRecord<String, byte[]> consumerRecord)
+      throws MessageProductionException {
     if (quarantineService.isInQuarantine(citizenId)) {
       log.warn("Skipping event for quarantined citizen: {}", citizenId);
       quarantinePublisher.publishToQuarantine(citizenId, consumerRecord.value(), consumerRecord.topic(),

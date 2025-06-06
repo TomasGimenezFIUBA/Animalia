@@ -23,12 +23,12 @@ import org.mockito.MockitoAnnotations;
 
 import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
 import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
-import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
 import com.tomasgimenez.citizen_command_service.repository.CitizenEventRepository;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 import com.tomasgimenez.citizen_common.exception.SerializationException;
 import com.tomasgimenez.citizen_common.kafka.AvroSerializer;
 
@@ -89,8 +89,8 @@ class CitizenEventServiceImplTest {
     when(mapper.toCreatedEvent(citizen)).thenReturn(envelope);
     when(serializer.serialize(envelope)).thenThrow(new SerializationException("fail", new RuntimeException()));
 
-    EntityPersistenceException ex = assertThrows(
-        EntityPersistenceException.class,
+    DatabaseWriteException ex = assertThrows(
+        DatabaseWriteException.class,
         () -> service.createCreatedEvent(citizen)
     );
 
@@ -104,8 +104,8 @@ class CitizenEventServiceImplTest {
     when(serializer.serialize(envelope)).thenReturn(serializedPayload);
     when(repository.save(any())).thenThrow(new RuntimeException("db error"));
 
-    EntityPersistenceException ex = assertThrows(
-        EntityPersistenceException.class,
+    DatabaseWriteException ex = assertThrows(
+        DatabaseWriteException.class,
         () -> service.createCreatedEvent(citizen)
     );
 
@@ -128,8 +128,8 @@ class CitizenEventServiceImplTest {
     when(repository.findOldestUnprocessedPerAggregateId(5))
         .thenThrow(new RuntimeException("db down"));
 
-    DatabaseAccessException ex = assertThrows(
-        DatabaseAccessException.class,
+    DatabaseReadException ex = assertThrows(
+        DatabaseReadException.class,
         () -> service.getOldestUnprocessedPerAggregateId(5)
     );
 
@@ -150,8 +150,8 @@ class CitizenEventServiceImplTest {
     List<UUID> ids = List.of(UUID.randomUUID(), UUID.randomUUID());
     doThrow(new RuntimeException("db error")).when(repository).markAllAsProcessedById(ids);
 
-    EntityPersistenceException ex = assertThrows(
-        EntityPersistenceException.class,
+    DatabaseWriteException ex = assertThrows(
+        DatabaseWriteException.class,
         () -> service.markAllAsProcessedById(ids)
     );
 

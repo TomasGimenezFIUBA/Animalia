@@ -4,8 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
-import com.tomasgimenez.citizen_query_service.exception.PersistenceException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -13,11 +13,12 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Setter
 @Slf4j
+@Setter
 public class RedisQuarantineServiceImpl implements QuarantineService {
 
-    private static final String FAILURE_COUNT_KEY = "citizen:failureCount";
+    private static final String REDIS_HASH_KEY = "citizen:failureCount";
+
     private final StringRedisTemplate redisTemplate;
 
     @Value("${quarantine.failure-threshold:3}")
@@ -25,46 +26,43 @@ public class RedisQuarantineServiceImpl implements QuarantineService {
 
     @Override
     public boolean isInQuarantine(String citizenId) {
-        Object value;
         try {
-            value = redisTemplate.opsForHash().get(FAILURE_COUNT_KEY, citizenId);
+            String countStr = (String) redisTemplate.opsForHash().get(REDIS_HASH_KEY, citizenId);
+            if (countStr == null) return false;
 
-        }catch (Exception e) {
-            log.error("Error checking quarantine status for citizen {}: {}", citizenId, e.getMessage(), e);
-            throw new DatabaseAccessException(
-                "Error accessing Redis for citizen quarantine status due to: " + citizenId, e);
-        }
-        
-        if (value == null) return false;
-
-        try {
-            int count = Integer.parseInt(value.toString());
+            int count = Integer.parseInt(countStr);
             return count >= failureThreshold;
         } catch (NumberFormatException e) {
+            log.warn("Invalid failure count format for citizen {} in Redis", citizenId);
             return false;
+        } catch (Exception e) {
+            log.error("Error checking quarantine status for citizen {}: {}", citizenId, e.getMessage(), e);
+            throw new DatabaseReadException(
+                "Error accessing Redis for citizen quarantine status: " + citizenId, e);
         }
     }
 
     @Override
     public void resetQuarantineCounter(String citizenId) {
         try {
-            redisTemplate.opsForHash().delete(FAILURE_COUNT_KEY, citizenId);
+            redisTemplate.opsForHash().delete(REDIS_HASH_KEY, citizenId);
+            log.debug("Reset quarantine counter for citizen {}", citizenId);
         } catch (Exception e) {
             log.error("Error resetting quarantine counter for citizen {}: {}", citizenId, e.getMessage(), e);
-            throw new PersistenceException(
-                "Error resetting quarantine counter for citizen in Redis due to: " + citizenId, e);
+            throw new DatabaseWriteException(
+                "Failed to reset quarantine counter in Redis for citizen: " + citizenId, e);
         }
     }
 
     @Override
     public boolean recordFailureForCitizen(String citizenId) {
         try {
-            Long failures = redisTemplate.opsForHash().increment(FAILURE_COUNT_KEY, citizenId, 1);
-            return failures != null && failures >= failureThreshold;
+            Long failureCount = redisTemplate.opsForHash().increment(REDIS_HASH_KEY, citizenId, 1);
+            return failureCount != null && failureCount >= failureThreshold;
         } catch (Exception e) {
             log.error("Error recording failure for citizen {}: {}", citizenId, e.getMessage(), e);
-            throw new PersistenceException(
-                "Error recording failure for citizen in Redis due to: " + citizenId, e);
+            throw new DatabaseWriteException(
+                "Failed to record failure in Redis for citizen: " + citizenId, e);
         }
     }
 }

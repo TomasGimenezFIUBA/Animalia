@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityConflictException;
-import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 import com.tomasgimenez.citizen_command_service.exception.InvalidEntityReferenceException;
 import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
@@ -24,7 +24,7 @@ import com.tomasgimenez.citizen_command_service.model.request.CreateCitizenReque
 import com.tomasgimenez.citizen_command_service.model.request.UpdateCitizenRequest;
 import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import jakarta.persistence.PessimisticLockException;
@@ -87,7 +87,7 @@ public class CitizenServiceImpl implements CitizenService {
       throw new EntityConflictException("Conflict occurred while updating citizen", e);
     } catch (Exception e) {
       log.error("Persistence error updating citizen: {}", e.getMessage(), e);
-      throw new EntityPersistenceException("Error while updating citizen", e);
+      throw new DatabaseWriteException("Error while updating citizen", e);
     }
   }
 
@@ -98,14 +98,14 @@ public class CitizenServiceImpl implements CitizenService {
       citizenRepository.deleteById(id);
       citizenEventService.createDeletedEvent(id);
       log.debug("Citizen with ID {} deleted", id);
-    } catch (EntityPersistenceException e) {
+    } catch (DatabaseWriteException e) {
       throw e;
     } catch (PessimisticLockException | DataIntegrityViolationException e) {
       log.error("Conflict deleting citizen: {}", e.getMessage(), e);
       throw new EntityConflictException("Conflict occurred while deleting citizen", e);
     } catch (Exception e) {
       log.error("Persistence error deleting citizen: {}", e.getMessage(), e);
-      throw new EntityPersistenceException("Error while deleting citizen", e);
+      throw new DatabaseWriteException("Error while deleting citizen", e);
     }
   }
 
@@ -141,7 +141,7 @@ public class CitizenServiceImpl implements CitizenService {
       return new HashSet<>(citizenRepository.findByRoleName(roleName));
     } catch (Exception e) {
       log.error("Error fetching citizens by role name: {}", roleName, e);
-      throw new DatabaseAccessException("Error accessing database for citizens with role name: " + roleName, e);
+      throw new DatabaseReadException("Error accessing database for citizens with role name: " + roleName, e);
     }
   }
 
@@ -151,7 +151,7 @@ public class CitizenServiceImpl implements CitizenService {
       optionalCitizen = citizenRepository.findById(id);
     } catch (Exception e) {
       log.error("Error fetching citizen by ID: {}", id, e);
-      throw new DatabaseAccessException("Error accessing database for citizen with ID: " + id, e);
+      throw new DatabaseReadException("Error accessing database for citizen with ID: " + id, e);
     }
 
     return optionalCitizen.orElseThrow(() -> {
@@ -208,13 +208,13 @@ public class CitizenServiceImpl implements CitizenService {
   private <T> T handleCreation(String operationName, Supplier<T> operation) {
     try {
       return operation.get();
-    } catch (EntityPersistenceException | DatabaseAccessException e) {
+    } catch (DatabaseWriteException | DatabaseReadException e) {
       throw e;
     } catch (EntityNotFoundException e) {
       throw new InvalidEntityReferenceException("Invalid reference in request during " + operationName + ": " + e.getMessage());
     } catch (Exception e) {
       log.error("Persistence error during {}: {}", operationName, e.getMessage(), e);
-      throw new EntityPersistenceException("Error while " + operationName, e);
+      throw new DatabaseWriteException("Error while " + operationName, e);
     }
   }
 

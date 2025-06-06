@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityConflictException;
-import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 import com.tomasgimenez.citizen_command_service.exception.InvalidEntityReferenceException;
 import com.tomasgimenez.citizen_command_service.exception.RolePolicyException;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
@@ -31,7 +31,7 @@ import com.tomasgimenez.citizen_command_service.policy.role.RolePolicyValidator;
 import com.tomasgimenez.citizen_command_service.repository.CitizenRepository;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 import jakarta.persistence.PessimisticLockException;
 
@@ -181,7 +181,7 @@ class CitizenServiceImplTest {
 
     when(citizenRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
 
-    DatabaseAccessException exception = assertThrows(DatabaseAccessException.class,
+    DatabaseReadException exception = assertThrows(DatabaseReadException.class,
         () -> citizenService.getById(id));
 
     assertTrue(exception.getMessage().contains("Error accessing database for citizen with ID: " + id));
@@ -299,7 +299,7 @@ class CitizenServiceImplTest {
     when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(role));
     when(citizenRepository.save(any())).thenThrow(new RuntimeException("DB error") {});
 
-    assertThrows(EntityPersistenceException.class, () -> citizenService.createCitizen(request));
+    assertThrows(DatabaseWriteException.class, () -> citizenService.createCitizen(request));
   }
 
   @Test
@@ -316,21 +316,21 @@ class CitizenServiceImplTest {
     when(roleService.getRolesByRoleNames(Set.of(RoleName.CIVIL))).thenReturn(Set.of(civ));
     when(citizenRepository.saveAll(any())).thenThrow(new RuntimeException("DB error") {});
 
-    assertThrows(EntityPersistenceException.class, () -> citizenService.createCitizens(requests));
+    assertThrows(DatabaseWriteException.class, () -> citizenService.createCitizens(requests));
   }
 
   @Test
   void getCitizensByRoleName_shouldThrowOnRepositoryError() {
     when(citizenRepository.findByRoleName(role.getName())).thenThrow(new RuntimeException("DB error") {});
 
-    assertThrows(DatabaseAccessException.class, () -> citizenService.getCitizensByRoleName(role.getName()));
+    assertThrows(DatabaseReadException.class, () -> citizenService.getCitizensByRoleName(role.getName()));
   }
 
   @Test
   void deleteCitizen_shouldThrowOnRepositoryError() {
     UUID id = UUID.randomUUID();
     doThrow(new RuntimeException("DB error") {}).when(citizenRepository).deleteById(id);
-    assertThrows(EntityPersistenceException.class, () -> citizenService.deleteCitizen(id));
+    assertThrows(DatabaseWriteException.class, () -> citizenService.deleteCitizen(id));
   }
 
   @Test
@@ -521,7 +521,7 @@ class CitizenServiceImplTest {
     when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(role));
     when(citizenRepository.save(any())).thenThrow(new RuntimeException("Unexpected error"));
 
-    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+    DatabaseWriteException exception = assertThrows(DatabaseWriteException.class,
         () -> citizenService.createCitizen(request));
 
     assertTrue(exception.getMessage().contains("Error while creating citizen"));
@@ -543,7 +543,7 @@ class CitizenServiceImplTest {
     when(roleService.getRolesByRoleNames(roles)).thenReturn(Set.of(civ));
     when(citizenRepository.saveAll(any())).thenThrow(new RuntimeException("Unexpected error"));
 
-    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+    DatabaseWriteException exception = assertThrows(DatabaseWriteException.class,
         () -> citizenService.createCitizens(requests));
 
     assertTrue(exception.getMessage().contains("Error while creating citizens"));
@@ -557,7 +557,7 @@ class CitizenServiceImplTest {
     when(citizenRepository.findByIdForUpdate(citizen.getId())).thenReturn(Optional.of(citizen));
     when(citizenRepository.save(any())).thenThrow(new RuntimeException("Unexpected error"));
 
-    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+    DatabaseWriteException exception = assertThrows(DatabaseWriteException.class,
         () -> citizenService.updateCitizen(request));
 
     assertTrue(exception.getMessage().contains("Error while updating citizen"));
@@ -570,7 +570,7 @@ class CitizenServiceImplTest {
 
     doThrow(new RuntimeException("Unexpected error")).when(citizenRepository).deleteById(id);
 
-    EntityPersistenceException exception = assertThrows(EntityPersistenceException.class,
+    DatabaseWriteException exception = assertThrows(DatabaseWriteException.class,
         () -> citizenService.deleteCitizen(id));
 
     assertTrue(exception.getMessage().contains("Error while deleting citizen"));

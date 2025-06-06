@@ -13,6 +13,7 @@ import org.springframework.kafka.support.Acknowledgment;
 
 import com.tomasgimenez.animalia.avro.*;
 import com.tomasgimenez.citizen_common.exception.DeserializationException;
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
 import com.tomasgimenez.citizen_common.kafka.AvroDeserializer;
 import com.tomasgimenez.citizen_query_service.messaging.CitizenEventHandler;
 import com.tomasgimenez.citizen_query_service.messaging.QuarantinePublisher;
@@ -41,7 +42,7 @@ public class KafkaCitizenConsumerTest {
   }
 
   @Test
-  void shouldSkipIfCitizenIsInQuarantine() {
+  void shouldSkipIfCitizenIsInQuarantine() throws MessageProductionException {
     var record = record("1", new byte[]{});
 
     when(quarantineService.isInQuarantine("1")).thenReturn(true);
@@ -54,7 +55,7 @@ public class KafkaCitizenConsumerTest {
   }
 
   @Test
-  void shouldSkipIfEventAlreadyProcessed() throws DeserializationException {
+  void shouldSkipIfEventAlreadyProcessed() throws DeserializationException, MessageProductionException {
     var eventId = UUID.randomUUID();
     var payload = new CitizenCreatedEvent(
         eventId.toString(),
@@ -86,7 +87,7 @@ public class KafkaCitizenConsumerTest {
   }
 
   @Test
-  void shouldHandleCreatedEvent() throws DeserializationException {
+  void shouldHandleCreatedEvent() throws DeserializationException, MessageProductionException {
     var id = UUID.randomUUID();
     var eventId = UUID.randomUUID().toString();
     var event = new CitizenCreatedEvent(
@@ -121,7 +122,7 @@ public class KafkaCitizenConsumerTest {
   }
 
   @Test
-  void shouldPublishToQuarantineOnDeserializationError() throws DeserializationException {
+  void shouldPublishToQuarantineOnDeserializationError() throws DeserializationException, MessageProductionException {
     var record = record("1", new byte[]{});
 
     when(quarantineService.isInQuarantine("1"))

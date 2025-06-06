@@ -12,7 +12,7 @@ import com.tomasgimenez.citizen_command_service.config.CacheConfig;
 import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import com.tomasgimenez.citizen_command_service.model.entity.SpeciesEntity;
 import com.tomasgimenez.citizen_command_service.repository.SpeciesRepository;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class SpeciesServiceImpl implements SpeciesService {
        optionalSpecies = speciesRepository.findById(id);
     } catch (Exception e) {
       log.error("Error fetching species by ID: {}", id, e);
-      throw new DatabaseAccessException(
+      throw new DatabaseReadException(
           "Error accessing database for species with ID: " + id, e);
     }
 

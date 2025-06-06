@@ -11,8 +11,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
-import com.tomasgimenez.citizen_command_service.service.CitizenEventProducerService;
+import com.tomasgimenez.citizen_command_service.messaging.CitizenEventProducer;
 import com.tomasgimenez.citizen_command_service.service.CitizenEventService;
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CitizenEventPublisherJob {
   private final CitizenEventService citizenEventService;
-  private final CitizenEventProducerService citizenEventProducerService;
+  private final CitizenEventProducer citizenEventProducer;
 
   @Scheduled(fixedDelayString = "${outbox-publisher.fixed-delay:5000}")
   public void publishPendingEvents() {
@@ -39,7 +40,7 @@ public class CitizenEventPublisherJob {
         .map(event -> {
           try {
             return handleSendCitizenEvent(event, processedIds);
-          }catch (Exception e) {
+          } catch (MessageProductionException e) {
             log.error("Error sending event {}: {}", event.getId(), e.getMessage(), e);
             return CompletableFuture.completedFuture(null);
           }
@@ -51,8 +52,8 @@ public class CitizenEventPublisherJob {
   }
 
   private CompletableFuture<SendResult<String, byte[]>> handleSendCitizenEvent(CitizenEventEntity event,
-      ConcurrentLinkedQueue<UUID> processedIds) {
-    return citizenEventProducerService.sendCitizenEvent(
+      ConcurrentLinkedQueue<UUID> processedIds) throws MessageProductionException {
+    return citizenEventProducer.sendCitizenEvent(
         event.getAggregateId().toString(),
         event.getPayload(),
         event.getTopic(),

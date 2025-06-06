@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 import com.tomasgimenez.animalia.avro.CitizenEventEnvelope;
 import com.tomasgimenez.animalia.avro.CitizenEventType;
 import com.tomasgimenez.citizen_command_service.config.KafkaTopics;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
-import com.tomasgimenez.citizen_command_service.exception.EntityPersistenceException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
 import com.tomasgimenez.citizen_command_service.mapper.CitizenEventMapper;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.CitizenEventEntity;
@@ -66,7 +66,7 @@ public class CitizenEventServiceImpl implements CitizenEventService {
       return citizenEventRepository.findOldestUnprocessedPerAggregateId(limit);
     } catch (Exception e) {
       log.error("Failed to fetch unprocessed events: {}", e.getMessage(), e);
-      throw new DatabaseAccessException("Could not fetch unprocessed events", e);
+      throw new DatabaseReadException("Could not fetch unprocessed events", e);
     }
   }
 
@@ -78,7 +78,7 @@ public class CitizenEventServiceImpl implements CitizenEventService {
       log.debug("Marked {} events as processed", ids.size());
     } catch (Exception e) {
       log.error("Failed to mark events as processed: {}", e.getMessage(), e);
-      throw new EntityPersistenceException("Could not mark some events as processed", e);
+      throw new DatabaseWriteException("Could not mark some events as processed", e);
     }
   }
 
@@ -99,10 +99,10 @@ public class CitizenEventServiceImpl implements CitizenEventService {
       log.debug("{} event persisted for citizen ID {}", eventType, aggregateId);
     } catch (SerializationException serializationException) {
       log.error("Serialization error for {} event of citizen ID {}: {}", eventType, aggregateId, serializationException.getMessage(), serializationException);
-      throw new EntityPersistenceException("Event could not be persisted due to serialization exception", serializationException);
+      throw new DatabaseWriteException("Event could not be persisted due to serialization exception", serializationException);
     } catch (Exception e) {
       log.error("Database save failed for {} event of citizen ID {}: {}", eventType, aggregateId, e.getMessage(), e);
-      throw new EntityPersistenceException("Failed to persist event", e);
+      throw new DatabaseWriteException("Failed to persist event", e);
     }
   }
 }

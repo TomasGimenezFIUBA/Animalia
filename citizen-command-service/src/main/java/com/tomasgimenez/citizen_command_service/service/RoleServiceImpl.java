@@ -11,7 +11,7 @@ import com.tomasgimenez.citizen_command_service.config.CacheConfig;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleEntity;
 import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.repository.RoleRepository;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ public class RoleServiceImpl implements RoleService{
       optionalRole = roleRepository.findByName(roleName);
     } catch (Exception e) {
       log.error("Error fetching role by name: {}", roleName, e);
-      throw new DatabaseAccessException(
+      throw new DatabaseReadException(
           "Error accessing database for role with name: " + roleName, e);
     }
 

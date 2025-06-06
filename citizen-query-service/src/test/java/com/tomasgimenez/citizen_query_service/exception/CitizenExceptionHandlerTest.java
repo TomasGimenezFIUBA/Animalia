@@ -8,6 +8,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.tomasgimenez.citizen_query_service.exception.handler.CitizenExceptionHandler;
+
 class CitizenExceptionHandlerTest {
 
   private final CitizenExceptionHandler handler = new CitizenExceptionHandler();
@@ -36,7 +38,7 @@ class CitizenExceptionHandlerTest {
   void handleGenericException_returns500WithGenericMessage() {
     Exception ex = new RuntimeException("Something went wrong");
 
-    ResponseEntity<Map<String, String>> response = handler.handleRolePolicyException(ex);
+    ResponseEntity<Map<String, String>> response = handler.handleUnexpectedError(ex);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(response.getBody()).containsEntry("error", "Internal server error. Please try again later.");

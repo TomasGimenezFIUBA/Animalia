@@ -1,11 +1,13 @@
 package com.tomasgimenez.citizen_query_service.messaging.kafka;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
 import com.tomasgimenez.citizen_query_service.config.KafkaTopics;
 
 class KafkaQuarantinePublisherImplTest {
@@ -22,7 +24,7 @@ class KafkaQuarantinePublisherImplTest {
   }
 
   @Test
-  void publishToQuarantine_successfulSend_logsWarning() {
+  void publishToQuarantine_successfulSend_logsWarning() throws MessageProductionException {
     String citizenId = "123";
     byte[] payload = new byte[]{1, 2, 3};
     String quarantineTopic = "quarantine-topic";
@@ -36,7 +38,7 @@ class KafkaQuarantinePublisherImplTest {
   }
 
   @Test
-  void publishToQuarantine_sendThrowsException_logsError() {
+  void publishToQuarantine_sendThrowsException() {
     String citizenId = "456";
     byte[] payload = new byte[]{4, 5, 6};
     String quarantineTopic = "quarantine-topic";
@@ -45,7 +47,7 @@ class KafkaQuarantinePublisherImplTest {
     when(kafkaTopics.getCitizenQuarantine()).thenReturn(quarantineTopic);
     doThrow(new RuntimeException("Kafka down")).when(kafkaTemplate).send(anyString(), anyString(), any());
 
-    publisher.publishToQuarantine(citizenId, payload, "original-topic", reason);
+    assertThrows(MessageProductionException.class, () -> publisher.publishToQuarantine(citizenId, payload, "original-topic", reason));
 
     verify(kafkaTemplate).send(quarantineTopic, citizenId, payload);
   }

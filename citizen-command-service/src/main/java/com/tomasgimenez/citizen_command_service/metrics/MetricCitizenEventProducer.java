@@ -11,20 +11,22 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import com.tomasgimenez.citizen_command_service.constants.Metric;
-import com.tomasgimenez.citizen_command_service.service.CitizenEventProducerService;
+import com.tomasgimenez.citizen_command_service.messaging.CitizenEventProducer;
+import com.tomasgimenez.citizen_common.exception.MessageProductionException;
 
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Primary
 @Service
-public class MetricCitizenEventProducerService implements CitizenEventProducerService {
+public class MetricCitizenEventProducer implements CitizenEventProducer {
 
-    private final CitizenEventProducerService delegate;
+    private final CitizenEventProducer delegate;
     private final MetricCollector metricCollector;
 
     @Override
-    public CompletableFuture<SendResult<String, byte[]>> sendCitizenEvent(String key, byte[] payload, String topic, Consumer<SendResult<String, byte[]>> onSuccess) {
+    public CompletableFuture<SendResult<String, byte[]>> sendCitizenEvent(String key, byte[] payload, String topic, Consumer<SendResult<String, byte[]>> onSuccess)
+        throws MessageProductionException {
         return delegate.sendCitizenEvent(key, payload, topic, onSuccess)
             .whenComplete((result, exception) -> {
                 if (exception != null) {

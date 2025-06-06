@@ -18,7 +18,7 @@ import com.tomasgimenez.citizen_command_service.model.entity.RoleName;
 import com.tomasgimenez.citizen_command_service.repository.RoleRepository;
 
 import com.tomasgimenez.citizen_command_service.exception.EntityNotFoundException;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -91,7 +91,7 @@ class RoleServiceImplTest {
 
     when(roleRepository.findByName(roleName)).thenThrow(new RuntimeException("Unexpected error"));
 
-    DatabaseAccessException exception = assertThrows(DatabaseAccessException.class,
+    DatabaseReadException exception = assertThrows(DatabaseReadException.class,
         () -> roleService.getRoleByName(roleName));
 
     assertTrue(exception.getMessage().contains("Error accessing database for role with name: " + roleName));
@@ -105,7 +105,7 @@ class RoleServiceImplTest {
 
     when(roleRepository.findByName(roleName)).thenThrow(new RuntimeException("Unexpected error"));
 
-    DatabaseAccessException exception = assertThrows(DatabaseAccessException.class,
+    DatabaseReadException exception = assertThrows(DatabaseReadException.class,
         () -> roleService.getRolesByRoleNames(roleNameSet));
 
     assertTrue(exception.getMessage().contains("Error accessing database for role with name: " + roleName));

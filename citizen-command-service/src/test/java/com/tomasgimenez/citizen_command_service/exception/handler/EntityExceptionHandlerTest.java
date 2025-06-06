@@ -3,7 +3,9 @@ package com.tomasgimenez.citizen_command_service.exception.handler;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tomasgimenez.citizen_command_service.exception.*;
-import com.tomasgimenez.citizen_common.exception.DatabaseAccessException;
+import com.tomasgimenez.citizen_common.exception.DatabaseReadException;
+import com.tomasgimenez.citizen_common.exception.DatabaseWriteException;
+
 import jakarta.persistence.PessimisticLockException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,25 +61,5 @@ class EntityExceptionHandlerTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getBody()).containsEntry("error", "Resource is currently locked. Please try again later.");
-  }
-
-  @Test
-  void handleEntityPersistenceException_returns500WithMessage() {
-    EntityPersistenceException ex = new EntityPersistenceException("Persistence error");
-
-    ResponseEntity<Map<String, String>> response = handler.handleEntityPersistenceException(ex);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(response.getBody()).containsEntry("error", "Persistence error");
-  }
-
-  @Test
-  void handleDatabaseAccessException_returns500WithMessage() {
-    DatabaseAccessException ex = new DatabaseAccessException("Database access error", new RuntimeException());
-
-    ResponseEntity<Map<String, String>> response = handler.handleDatabaseAccessException(ex);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(response.getBody()).containsEntry("error", "Database access error");
   }
 }
